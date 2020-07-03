@@ -1,0 +1,5 @@
+	ORG	$0000
+
+	MOVE	D0,D0
+	STOP
+
