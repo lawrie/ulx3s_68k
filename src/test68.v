@@ -13,7 +13,6 @@ module test68
   input [3:0]   sw,
   // HDMI
   output [3:0]  gpdi_dp,
-  output [3:0]  gpdi_dn,
   // Keyboard
   output        usb_fpga_pu_dp,
   output        usb_fpga_pu_dn,
@@ -373,7 +372,7 @@ module test68
   )
   spi_osd_inst
   (
-    .clk_pixel(clk25_mhz), .clk_pixel_ena(1),
+    .clk_pixel(clk_vga), .clk_pixel_ena(1),
     .i_r(red  ),
     .i_g(green),
     .i_b(blue ),
@@ -394,7 +393,7 @@ module test68
     .hSync(~osd_vga_hsync),
     .vSync(~osd_vga_vsync),
     .gpdi_dp(gpdi_dp),
-    .gpdi_dn(gpdi_dn)
+    .gpdi_dn()
   );
 
   assign audio_l = 0;
