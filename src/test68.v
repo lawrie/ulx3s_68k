@@ -137,7 +137,8 @@ module test68
   // 68000 CPU
   // ===============================================================
   reg  fx68_phi1;                // Phi 1 enable
-  wire fx68_phi2 = !fx68_phi1;   // Phi 2 enable
+  //reg  fx68_phi2;                // Phi 2 enable
+  wire fx68_phi2 = !fx68_phi1;
   wire cpu_rw;                   // Read = 1, Write = 0
   wire cpu_as_n;                 // Address strobe
   wire cpu_lds_n;                // Lower byte
@@ -168,14 +169,15 @@ module test68
 
   // Run 68k cpu very slowly
   always @(posedge clk25_mhz) begin
-    fx68_phi1 <= delay_cnt == 0;
-    fx68_phi2 <= delay_cnt == 24'h80000;
+    //fx68_phi1 <= delay_cnt == 0;
+    //fx68_phi2 <= delay_cnt == 24'h80000;
+    fx68_phi1 <= ~fx68_phi1;
   end
 
   fx68k fx68k (
     // input
     .clk( clk25_mhz),
-    .HALTn(halt_n),
+    .HALTn(1'b1),
     .extReset(!btn[0] || !pwr_up_reset_n),
     //.pwrUp(!pwr_up_reset_n), // nextpnr fails timing analysis with this
     .pwrUp(1'b0),
@@ -261,27 +263,6 @@ module test68
   );
   endgenerate
 
-  // VRAM
-  reg [14:0] vid_addr = 0;
-  wire [7:0] vid_out;
-  reg [14:0] vga_addr = 0;
-  reg vga_wr;
-  reg vga_rd;
-  wire [7:0] vga_dout;
-  reg [7:0] vga_din = 0;
-
-  vram video_ram (
-    .clk_a(clk25_mhz),
-    .addr_a(vga_addr),
-    .we_a(vga_wr),
-    .re_a(vga_rd),
-    .din_a(vga_din),
-    .dout_a(vga_dout),
-    .clk_b(clk25_mhz),
-    .addr_b(vid_addr),
-    .dout_b(vid_out)
-  );
-
   // ===============================================================
   // Joystick for OSD control and games
   // ===============================================================
@@ -342,14 +323,38 @@ module test68
   // ===============================================================
   // VGA
   // ===============================================================
-  wire        vga_de;
+  wire [14:0] vid_addr;
+  wire [7:0] vid_out;
+  reg [14:0] vga_addr = 0;
+  reg        vga_wr = 0;
+  reg        vga_rd = 0;
+  wire [7:0] vga_dout;
+  reg [7:0]  vga_din = 0;
+  wire       vga_de;
 
-  assign red = 0;
-  assign blue = 0;
-  assign green = 0;
-  assign vga_de = 0;
-  assign vSync = 0;
-  assign hSync = 0;
+  vram video_ram (
+    .clk_a(clk25_mhz),
+    .addr_a(vga_addr),
+    .we_a(vga_wr),
+    .re_a(vga_rd),
+    .din_a(vga_din),
+    .dout_a(vga_dout),
+    .clk_b(clk25_mhz),
+    .addr_b(vid_addr),
+    .dout_b(vid_out)
+  );
+
+  video vga (
+    .clk(clk25_mhz),
+    .vga_r(red),
+    .vga_g(green),
+    .vga_b(blue),
+    .vga_de(vga_de),
+    .vga_hs(hSync),
+    .vga_vs(vSync),
+    .vga_addr(vid_addr),
+    .vga_data(vid_out)
+  );
 
   // ===============================================================
   // SPI Slave for OSD display
