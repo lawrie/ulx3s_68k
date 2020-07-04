@@ -156,17 +156,22 @@ module test68
   reg  berr_n = 1'b0;            // Bus error. nextpnr fails if this is set to 1
   wire cpu_reset_n_o;            // Reset output signal
   reg  dtack_n = 1'b0;           // Data transfer ack (ready)
-  reg  mcu_br_n;                 // Bus request
   wire bg_n;                     // Bus grant
   reg  bgack_n = 1'b1;           // Bus grant ack
   reg  ipl0_n = 1'b1;            // Interrupt request signals
   reg  ipl1_n = 1'b1;
   reg  ipl2_n = 1'b1;
-  wire [15:0] ramOut;
-  wire [15:0] cpu_din = ramOut;  // Data to CPU
+  wire [15:0] ram_dout;
+  wire [15:0] rom_dout;
+  wire [7:0]  vga_dout;
+  wire [15:0] cpu_din;           // Data to CPU
   wire [15:0] cpu_dout;          // Data from CPU
   wire [23:1] cpu_a;             // Address
   reg  halt_n = 1'b1;            // Halt request
+
+  assign cpu_din = cpu_a[17:15] < 2  ? rom_dout :
+                   cpu_a[17:15] == 2 ? vga_dout :
+		                       ram_dout;
 
   // Used for slowed-down CPU
   //reg [23:0] delay_cnt;
@@ -190,7 +195,7 @@ module test68
     .enPhi2(fx68_phi2),
     // output
     .eRWn(cpu_rw),
-    .ASn( cpu_as_n),
+    .ASn(cpu_as_n),
     .LDSn(cpu_lds_n),
     .UDSn(cpu_uds_n),
     .E(cpu_E),
@@ -206,7 +211,7 @@ module test68
     .VPAn(vpa_n),
     .BERRn(berr_n),
     .BRn(1'b1),       // No bus requests
-    .BGACKn(1'b0),
+    .BGACKn(1'b1),
     .IPL0n(ipl0_n),
     .IPL1n(ipl1_n),
     .IPL2n(ipl2_n),
@@ -248,7 +253,7 @@ module test68
    .addrA(cpu_a),
    .oeA(cpu_rw),
    .dinA(cpu_dout),
-   .doutA(ramOut),
+   .doutA(rom_dout),
    // SPI interface
    .weB(spi_ram_wr && spi_ram_addr[31:24] == 8'h00),
    .addrB(spi_ram_addr[23:0]),
@@ -263,10 +268,23 @@ module test68
     .we_b(spi_ram_wr && spi_ram_addr[31:24] == 8'h00), // used by OSD
     .addr_b(spi_ram_addr[14:0]),
     .din_b(spi_ram_di),
-    .addr(cpu_a),
-    .dout(ramOut)
+    .addr(cpu_a[15:1]),
+    .dout(rom_dout)
   );
   endgenerate
+
+  // ===============================================================
+  // Ram
+  // ===============================================================
+  ram ram32 (
+    .clk(clk_cpu),
+    .addr(cpu_a[14:1]),
+    .din(cpu_dout),
+    .we(!cpu_rw && cpu_a[17:15] > 2),
+    .dout(ram_dout),
+    .ub(!cpu_uds_n),
+    .lb(!cpu_lds_n)
+  );
 
   // ===============================================================
   // Joystick for OSD control and games
@@ -281,7 +299,7 @@ module test68
   wire        spi_ram_wr, spi_ram_rd;
   wire [31:0] spi_ram_addr;
   wire  [7:0] spi_ram_di;
-  wire  [7:0] spi_ram_do = ramOut;
+  wire  [7:0] spi_ram_do = rom_dout;
 
   assign sd_d[0] = 1'bz;
   assign sd_d[3] = 1'bz; // FPGA pin pullup sets SD card inactive at SPI bus
@@ -328,21 +346,21 @@ module test68
   // ===============================================================
   // Video
   // ===============================================================
-  wire [14:0] vid_addr;
-  wire [7:0] vid_out;
-  reg [14:0] vga_addr = 0;
-  reg        vga_wr = 0;
-  reg        vga_rd = 0;
-  wire [7:0] vga_dout;
-  reg [7:0]  vga_din = 0;
-  wire       vga_de;
+  wire [14:0] vid_addr; // Used by vdp
+  wire [7:0]  vid_out;  // Used by vdp
+  wire [14:0] vga_addr = cpu_a[14:1];
+  wire        vga_wr = !cpu_rw && cpu_a[17:15] == 2;
+  wire        vga_rd = cpu_rw && cpu_a[17:15] == 2;
+  wire        vga_de;
 
   vram video_ram (
     .clk_a(clk_cpu),
     .addr_a(vga_addr),
     .we_a(vga_wr),
     .re_a(vga_rd),
-    .din_a(vga_din),
+    .din_a(cpu_dout),
+    .ub_a(!cpu_uds_n),
+    .lb_a(!cpu_lds_n),
     .dout_a(vga_dout),
     .clk_b(clk_vga),
     .addr_b(vid_addr),

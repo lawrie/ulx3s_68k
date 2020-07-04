@@ -55,10 +55,10 @@ module fx68kAlu (
 	reg [15:0] result;
 	reg [4:0] ccrTemp;
 	reg coreH;
-	wire [15:0] subResult;
-	wire subHcarry;
-	wire subCout;
-	wire subOv;
+	reg [15:0] subResult;
+	reg subHcarry;
+	reg subCout;
+	reg subOv;
 	assign aluOut = aluLatch;
 	assign ze = ~ccrCore[ZF];
 	reg [15:0] row;
