@@ -43,6 +43,12 @@ module test68
   output  [1:0] sdram_dqm,// byte select
   inout  [15:0] sdram_d,  // data bus to/from SDRAM
   inout  [27:0] gp,gn,
+  // SPI display
+  output oled_csn,
+  output oled_clk,
+  output oled_mosi,
+  output oled_dc,
+  output oled_resn,
   // Leds
   output [7:0]  leds
 );
@@ -435,6 +441,66 @@ module test68
 
   //always @(posedge clk_cpu) diag16 = cpu_a[16:1];
   always @(posedge clk_cpu) diag16 = cpu_a[16:1];
+
+  // SPI DISPLAY
+  reg [127:0] R_display; // something to display
+  always @(posedge clk_cpu)
+    R_display <= { 1'b0, R_btn_joy, cpu_dout, cpu_din, cpu_a, 1'b0 };
+
+  parameter C_color_bits = 16;
+  wire [7:0] x;
+  wire [7:0] y;
+  wire [C_color_bits-1:0] color;
+  hex_decoder_v
+  #(
+    .c_data_len(128),
+    .c_row_bits(4),
+    .c_grid_6x8(1), // NOTE: TRELLIS needs -abc9 option to compile
+    .c_font_file("hex_font.mem"),
+    .c_color_bits(C_color_bits)
+  )
+  hex_decoder_v_inst
+  (
+    .clk(clk_hdmi),
+    .data(R_display),
+    .x(x[7:1]),
+    .y(y[7:1]),
+    .color(color)
+  );
+
+  // allow large combinatorial logic
+  // to calculate color(x,y)
+  wire next_pixel;
+  reg [C_color_bits-1:0] R_color;
+  always @(posedge clk_hdmi)
+    if(next_pixel)
+      R_color <= color;
+
+  wire w_oled_csn;
+  lcd_video
+  #(
+    .c_clk_mhz(125),
+    .c_init_file("st7789_linit_xflip.mem"),
+    .c_clk_phase(0),
+    .c_clk_polarity(1),
+    .c_init_size(38)
+  )
+  lcd_video_inst
+  (
+    .clk(clk_hdmi),
+    .reset(R_btn_joy[5]),
+    .x(x),
+    .y(y),
+    .next_pixel(next_pixel),
+    .color(R_color),
+    .spi_clk(oled_clk),
+    .spi_mosi(oled_mosi),
+    .spi_dc(oled_dc),
+    .spi_resn(oled_resn),
+    .spi_csn(w_oled_csn)
+  );
+  //assign oled_csn = w_oled_csn; // 8-pin ST7789: oled_csn is connected to CSn
+  assign oled_csn = 1; // 7-pin ST7789: oled_csn is connected to BLK (backlight enable pin)
 
 endmodule
 
