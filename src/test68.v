@@ -70,7 +70,7 @@ module test68
 
   wire clk_hdmi  = clocks[0];
   wire clk_vga   = clocks[1];
-  wire cpuClock  = clocks[1];
+  wire clk_cpu   = clocks[1];
   wire clk_sdram = clocks[2];
   wire sdram_clk = clocks[3]; // phase shifted for chip
 
@@ -80,10 +80,14 @@ module test68
   reg [15:0] pwr_up_reset_counter = 0;
   wire       pwr_up_reset_n = &pwr_up_reset_counter;
 
-  always @(posedge clk25_mhz) begin
-     if (!pwr_up_reset_n)
+  always @(posedge clk_cpu) begin
+     if (clk_sdram_locked && !pwr_up_reset_n)
        pwr_up_reset_counter <= pwr_up_reset_counter + 1;
   end
+
+  // ===============================================================
+  // Ulx3s-specific pin assignments
+  // ===============================================================
 
   // Pull-ups for us2 connector
   assign usb_fpga_pu_dp = 1;
@@ -93,15 +97,15 @@ module test68
   assign wifi_rxd = ftdi_txd;
   assign ftdi_rxd = wifi_txd;
 
+  // ===============================================================
+  // Optional VGA output
+  // ===============================================================
   wire   [7:0]  red;
   wire   [7:0]  green;
   wire   [7:0]  blue;
   wire          hSync;
   wire          vSync;
 
-  // ===============================================================
-  // Optional VGA output
-  // ===============================================================
   generate
     genvar i;
     if (c_vga_out) begin
@@ -136,8 +140,8 @@ module test68
   // 68000 CPU
   // ===============================================================
   reg  fx68_phi1;                // Phi 1 enable
-  //reg  fx68_phi2;                // Phi 2 enable
-  wire fx68_phi2 = !fx68_phi1;
+  //reg  fx68_phi2;                // Phi 2 enable (for slow cpu)
+  wire fx68_phi2 = !fx68_phi1;   // Phi 2 enable
   wire cpu_rw;                   // Read = 1, Write = 0
   wire cpu_as_n;                 // Address strobe
   wire cpu_lds_n;                // Lower byte
@@ -163,11 +167,12 @@ module test68
   wire [23:1] cpu_a;             // Address
   reg  halt_n = 1'b1;            // Halt request
 
-  reg [23:0] delay_cnt;
-  always @(posedge clk25_mhz) delay_cnt <= delay_cnt + 1;
+  // Used for slowed-down CPU
+  //reg [23:0] delay_cnt;
+  //always @(posedge clk_cpu) delay_cnt <= delay_cnt + 1;
 
-  // Run 68k cpu very slowly
-  always @(posedge clk25_mhz) begin
+  // Run 68k cpu at 12.5 Mhz
+  always @(posedge clk_cpu) begin
     //fx68_phi1 <= delay_cnt == 0;
     //fx68_phi2 <= delay_cnt == 24'h80000;
     fx68_phi1 <= ~fx68_phi1;
@@ -175,7 +180,7 @@ module test68
 
   fx68k fx68k (
     // input
-    .clk( clk25_mhz),
+    .clk( clk_cpu),
     .HALTn(1'b1),
     .extReset(!btn[0] || !pwr_up_reset_n),
     //.pwrUp(!pwr_up_reset_n), // nextpnr fails timing analysis with this
@@ -211,7 +216,7 @@ module test68
   );
 
   // ===============================================================
-  // SDRAM
+  // SDRAM or BRAM for rom
   // ===============================================================
   wire sdram_d_wr;
   wire [15:0] sdram_d_in;
@@ -253,7 +258,7 @@ module test68
   else
   gamerom #(.MEM_INIT_FILE("../roms/test.mem")) 
   rom16 (
-    .clk(clk25_mhz),
+    .clk(clk_cpu),
     .we_b(spi_ram_wr && spi_ram_addr[31:24] == 8'h00), // used by OSD
     .addr_b(spi_ram_addr[14:0]),
     .din_b(spi_ram_di),
@@ -266,7 +271,7 @@ module test68
   // Joystick for OSD control and games
   // ===============================================================
   reg [6:0] R_btn_joy;
-  always @(posedge clk25_mhz)
+  always @(posedge clk_cpu)
     R_btn_joy <= btn;
 
   // ===============================================================
@@ -289,7 +294,7 @@ module test68
   )
   spi_ram_btn_inst
   (
-    .clk(clk25_mhz),
+    .clk(clk_cpu),
     .csn(~wifi_gpio5),
     .sclk(wifi_gpio16),
     .mosi(sd_d[1]), // wifi_gpio4
@@ -307,20 +312,20 @@ module test68
   assign wifi_gpio0 = ~irq;
 
   // ===============================================================
-  // Keyboard
+  // Keyboard (not yet implemented)
   // ===============================================================
   wire [10:0] ps2_key;
 
   // Get PS/2 keyboard events
   ps2 ps2_kbd (
-     .clk(clk25_mhz),
+     .clk(clk_cpu),
      .ps2_clk(ps2Clk),
      .ps2_data(ps2Data),
      .ps2_key(ps2_key)
   );
 
   // ===============================================================
-  // VGA
+  // Video
   // ===============================================================
   wire [14:0] vid_addr;
   wire [7:0] vid_out;
@@ -332,19 +337,19 @@ module test68
   wire       vga_de;
 
   vram video_ram (
-    .clk_a(clk25_mhz),
+    .clk_a(clk_cpu),
     .addr_a(vga_addr),
     .we_a(vga_wr),
     .re_a(vga_rd),
     .din_a(vga_din),
     .dout_a(vga_dout),
-    .clk_b(clk25_mhz),
+    .clk_b(clk_vga),
     .addr_b(vid_addr),
     .dout_b(vid_out)
   );
 
   video vga (
-    .clk(clk25_mhz),
+    .clk(clk_vga),
     .vga_r(red),
     .vga_g(green),
     .vga_b(blue),
@@ -358,7 +363,6 @@ module test68
   // ===============================================================
   // SPI Slave for OSD display
   // ===============================================================
-
   wire [7:0] osd_vga_r, osd_vga_g, osd_vga_b;
   wire osd_vga_hsync, osd_vga_vsync, osd_vga_blank;
   spi_osd
@@ -382,7 +386,9 @@ module test68
     .o_hsync(osd_vga_hsync), .o_vsync(osd_vga_vsync), .o_blank(osd_vga_blank)
   );
 
+  // ===============================================================
   // Convert VGA to HDMI
+  // ===============================================================
   HDMI_out vga2dvid (
     .pixclk(clk_vga),
     .pixclk_x5(clk_hdmi),
@@ -396,14 +402,20 @@ module test68
     .gpdi_dn()
   );
 
+  // ===============================================================
+  // Audio (not yet implemented)
+  // ===============================================================
   assign audio_l = 0;
   assign audio_r = audio_l;
 
+  // ===============================================================
+  // Diagnostic leds
+  // ===============================================================
   //assign leds = {cpu_fc2, cpu_fc1, cpu_fc0};
   assign leds = cpu_dout;
 
-  //always @(posedge clk25_mhz) diag16 = cpu_a[16:1];
-  always @(posedge clk25_mhz) diag16 = cpu_a[16:1];
+  //always @(posedge clk_cpu) diag16 = cpu_a[16:1];
+  always @(posedge clk_cpu) diag16 = cpu_a[16:1];
 
 endmodule
 
