@@ -106,13 +106,14 @@ module test68
   wire          hSync;
   wire          vSync;
 
+  // Pinout for Digilent VGA Pmod. Change for other pmods.
   generate
     genvar i;
     if (c_vga_out) begin
       for(i = 0; i < 4; i = i+1) begin
-        assign gp[10-i] = red[4+i];
+        assign gn[10-i] = red[4+i];
         assign gn[3-i] = green[4+i];
-        assign gn[10-i] = blue[4+i];
+        assign gp[10-i] = blue[4+i];
       end
       assign gp[2] = vSync;
       assign gp[3] = hSync;
