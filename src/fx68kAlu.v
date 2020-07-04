@@ -653,6 +653,7 @@ module ccrTable (
 					row[6], row[7], row[11]: ccrMask = KNZVC;
 					row[4], row[8], row[13], row[14]: ccrMask = KNZ00;
 					row[15]: ccrMask = 5'b0;
+					default: ccrMask = CUNUSED;
 				endcase
 			4:
 				case (row)

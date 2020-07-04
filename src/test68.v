@@ -159,9 +159,9 @@ module test68
   wire cpu_fc0;                  // Processor state
   wire cpu_fc1;
   wire cpu_fc2;
-  reg  berr_n = 1'b0;            // Bus error. nextpnr fails if this is set to 1
+  reg  berr_n = 1'b1;            // Bus error.
   wire cpu_reset_n_o;            // Reset output signal
-  reg  dtack_n = 1'b0;           // Data transfer ack (ready)
+  reg  dtack_n = 1'b0;           // Data transfer ack (always ready)
   wire bg_n;                     // Bus grant
   reg  bgack_n = 1'b1;           // Bus grant ack
   reg  ipl0_n = 1'b1;            // Interrupt request signals
@@ -193,10 +193,9 @@ module test68
   fx68k fx68k (
     // input
     .clk( clk_cpu),
-    .HALTn(1'b1),
+    .HALTn(halt_n),
     .extReset(!btn[0] || !pwr_up_reset_n),
-    //.pwrUp(!pwr_up_reset_n), // nextpnr fails timing analysis with this
-    .pwrUp(1'b0),
+    .pwrUp(!pwr_up_reset_n),
     .enPhi1(fx68_phi1),
     .enPhi2(fx68_phi2),
     // output
