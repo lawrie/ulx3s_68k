@@ -443,7 +443,7 @@ module test68
   always @(posedge clk_cpu) diag16 = cpu_a[16:1];
 
   // SPI DISPLAY
-  reg [127:0] R_display; // something to display
+  reg [127:0] R_display; // HEX decoder does printf("%20X", R_display);
   always @(posedge clk_cpu)
     R_display <= { 1'b0, R_btn_joy, cpu_dout, cpu_din, cpu_a, 1'b0 };
 
