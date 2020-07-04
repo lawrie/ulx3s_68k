@@ -1,23 +1,22 @@
 module ram (
   input            clk,
   input            we,
-  input [15:0]     addr,
-  input [7:0]      din,
+  input [14:1]     addr,
+  input [15:0]     din,
+  input            ub,
+  input            lb,
   output reg [7:0] dout,
 );
 
-  parameter MEM_INIT_FILE = "";
-   
-  reg [7:0] ram [0:65535];
+  reg [7:0] ram_ub [0:16383];
+  reg [7:0] ram_lb [0:16383];
 
-  initial
-    if (MEM_INIT_FILE != "")
-      $readmemh(MEM_INIT_FILE, ram);
-   
   always @(posedge clk) begin
-    if (we)
-      ram[addr] <= din;
-    dout <= ram[addr];
+    if (we) begin
+      if (ub) ram_ub[addr] <= din[15:8];
+      if (lb) ram_lb[addr] <= din[7:0];
+    end
+    dout <= {ram_ub[addr], ram_lb[addr]};
   end
 
 endmodule

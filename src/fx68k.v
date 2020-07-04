@@ -2013,7 +2013,7 @@ module uRom (
 	localparam UROM_WIDTH = 17;
 	output reg [UROM_WIDTH - 1:0] microOutput;
 	localparam UROM_DEPTH = 1024;
-	wire [UROM_WIDTH - 1:0] uRam [0:UROM_DEPTH - 1];
+	reg [UROM_WIDTH - 1:0] uRam [0:UROM_DEPTH - 1];
 	initial $readmemb("microrom.mem", uRam);
 	always @(posedge clk) microOutput <= uRam[microAddr];
 endmodule
@@ -2028,7 +2028,7 @@ module nanoRom (
 	localparam NANO_WIDTH = 68;
 	output reg [NANO_WIDTH - 1:0] nanoOutput;
 	localparam NANO_DEPTH = 336;
-	wire [NANO_WIDTH - 1:0] nRam [0:NANO_DEPTH - 1];
+	reg [NANO_WIDTH - 1:0] nRam [0:NANO_DEPTH - 1];
 	initial $readmemb("nanorom.mem", nRam);
 	always @(posedge clk) nanoOutput <= nRam[nanoAddr];
 endmodule
