@@ -1,4 +1,4 @@
-GCC     = m68k-linux-gnu-gcc-10
+GCC     = m68k-linux-gnu-gcc
 GCC_OPT = -fomit-frame-pointer -ffreestanding -nostdlib -nostartfiles -Os
 OBJCOPY = m68k-linux-gnu-objcopy
 OBJDUMP = m68k-linux-gnu-objdump
