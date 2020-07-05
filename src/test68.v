@@ -381,7 +381,7 @@ module test68
   // Video
   // ===============================================================
   wire [14:0] vid_addr; // Used by vdp
-  wire [7:0]  vid_out;  // Used by vdp
+  wire [7:0]  vid_dout; // Used by vdp
   wire [14:0] vga_addr = cpu_a[14:1];
   wire        vga_wr = !cpu_rw && cpu_a[17:15] == 2;
   wire        vga_rd = cpu_rw && cpu_a[17:15] == 2;
@@ -398,7 +398,7 @@ module test68
     .dout_a(vga_dout),
     .clk_b(clk_vga),
     .addr_b(vid_addr),
-    .dout_b(vid_out)
+    .dout_b(vid_dout)
   );
 
   video vga (
@@ -409,8 +409,8 @@ module test68
     .vga_de(vga_de),
     .vga_hs(hSync),
     .vga_vs(vSync),
-    .vga_addr(vid_addr),
-    .vga_data(vid_out)
+    .vid_addr(vid_addr),
+    .vid_dout(vid_dout)
   );
 
   // ===============================================================

@@ -1,6 +1,8 @@
 bin/
-roms/msx.mem
-roms/systemroms/
-roms/systemroms.zip
+*.s9
+*.bin
+*.save
+*.o
+
 
 

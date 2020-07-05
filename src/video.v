@@ -8,8 +8,8 @@ module video (
   output        vga_hs,
   output        vga_vs,
   output        vga_de,
-  input  [7:0]  vga_data,
-  output [12:0] vga_addr
+  input  [7:0]  vid_dout,
+  output [14:0] vid_addr
 );
 
   parameter HA = 640;
@@ -46,13 +46,26 @@ module video (
   wire [7:0] x = hc[9:1] - HB2;
   wire [7:0] y = vc[9:1] - VB2;
 
+  wire [7:0] x1 = x + 1;
+
   wire hBorder = (hc < HB || hc >= HA - HB);
   wire vBorder = (vc < VB || vc >= VA - VB);
   wire border = hBorder || vBorder;
 
-  wire [7:0] red = 0;
-  wire [7:0] green = 0;
-  wire [7:0] blue = border ? 0 : 8'hff;
+  // Read 2 pixels at a time
+  reg [7:0] pixels;
+  wire [3:0] pixel = x[0] ? pixels[3:0] : pixels[7:4];
+
+  always @(posedge clk) begin
+    if (hc[0] && hc < HA) begin
+      if (x[0]) vid_addr <=  {y, x1[7:1]};
+      else pixels <= vid_dout;
+    end
+  end
+
+  wire [7:0] green = border ? 8'b0 : pixel[2] ? 8'hff : 8'b0;
+  wire [7:0] red   = border ? 8'b0 : pixel[1] ? 8'hff : 8'b0;
+  wire [7:0] blue  = border ? 8'b0 : pixel[0] ? 8'hff : 8'b0;
 
   assign vga_r = !vga_de ? 4'b0 : red;
   assign vga_g = !vga_de ? 4'b0 : green;
