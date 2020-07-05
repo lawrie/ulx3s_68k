@@ -3,7 +3,7 @@ module test68
 #(
   parameter c_sdram       = 0, // 1:SDRAM, 0:BRAM 32K
   parameter c_vga_out     = 0, // 0; Just HDMI, 1: VGA and HDMI
-  parameter c_diag        = 1  // 0: No led diagnostcs, 1: led diagnostics 
+  parameter c_diag        = 0  // 0: No led diagnostcs, 1: led diagnostics
 )
 (
   input         clk25_mhz,
@@ -227,6 +227,50 @@ module test68
   );
 
   // ===============================================================
+  // Joystick for OSD control and games
+  // ===============================================================
+  reg [6:0] R_btn_joy;
+  always @(posedge clk_cpu)
+    R_btn_joy <= btn;
+
+  // ===============================================================
+  // SPI Slave for RAM and CPU control
+  // ===============================================================
+  wire        spi_ram_wr, spi_ram_rd;
+  wire [31:0] spi_ram_addr;
+  wire  [7:0] spi_ram_di;
+  wire  [7:0] spi_ram_do;
+
+  assign sd_d[0] = 1'bz;
+  assign sd_d[3] = 1'bz; // FPGA pin pullup sets SD card inactive at SPI bus
+
+  wire irq;
+
+  spi_ram_btn
+  #(
+    .c_sclk_capable_pin(1'b0),
+    .c_addr_bits(32)
+  )
+  spi_ram_btn_inst
+  (
+    .clk(clk_cpu),
+    .csn(~wifi_gpio5),
+    .sclk(wifi_gpio16),
+    .mosi(sd_d[1]), // wifi_gpio4
+    .miso(sd_d[2]), // wifi_gpio12
+    .btn(R_btn_joy),
+    .irq(irq),
+    .wr(spi_ram_wr),
+    .rd(spi_ram_rd),
+    .addr(spi_ram_addr),
+    .data_in(spi_ram_do),
+    .data_out(spi_ram_di)
+  );
+
+  // Used for interrupt to ESP32
+  assign wifi_gpio0 = ~irq;
+
+  // ===============================================================
   // SDRAM or BRAM for rom
   // ===============================================================
   wire sdram_d_wr;
@@ -263,8 +307,8 @@ module test68
    .weB(spi_ram_wr && spi_ram_addr[31:24] == 8'h00),
    .addrB(spi_ram_addr[23:0]),
    .dinB(spi_ram_di),
-   .oeB(0),
-   .doutB()
+   .oeB(spi_ram_rd),
+   .doutB(spi_ram_do)
   );
   else
   gamerom #(.MEM_INIT_FILE("../roms/test.mem")) 
@@ -291,49 +335,6 @@ module test68
     .lb(!cpu_lds_n)
   );
 
-  // ===============================================================
-  // Joystick for OSD control and games
-  // ===============================================================
-  reg [6:0] R_btn_joy;
-  always @(posedge clk_cpu)
-    R_btn_joy <= btn;
-
-  // ===============================================================
-  // SPI Slave for RAM and CPU control
-  // ===============================================================
-  wire        spi_ram_wr, spi_ram_rd;
-  wire [31:0] spi_ram_addr;
-  wire  [7:0] spi_ram_di;
-  wire  [7:0] spi_ram_do = rom_dout;
-
-  assign sd_d[0] = 1'bz;
-  assign sd_d[3] = 1'bz; // FPGA pin pullup sets SD card inactive at SPI bus
-
-  wire irq;
-  
-  spi_ram_btn
-  #(
-    .c_sclk_capable_pin(1'b0),
-    .c_addr_bits(32)
-  )
-  spi_ram_btn_inst
-  (
-    .clk(clk_cpu),
-    .csn(~wifi_gpio5),
-    .sclk(wifi_gpio16),
-    .mosi(sd_d[1]), // wifi_gpio4
-    .miso(sd_d[2]), // wifi_gpio12
-    .btn(R_btn_joy),
-    .irq(irq),
-    .wr(spi_ram_wr),
-    .rd(spi_ram_rd),
-    .addr(spi_ram_addr),
-    .data_in(spi_ram_do),
-    .data_out(spi_ram_di)
-  );
-  
-  // Used for interrupt to ESP32
-  assign wifi_gpio0 = ~irq;
 
   // ===============================================================
   // Keyboard (not yet implemented)
@@ -439,10 +440,11 @@ module test68
   assign leds = cpu_dout;
 
   //always @(posedge clk_cpu) diag16 = cpu_a[16:1];
-  always @(posedge clk_cpu) diag16 = cpu_a[16:1];
+  //always @(posedge clk_cpu) diag16 = cpu_a[16:1];
 
   // SPI DISPLAY
-  reg [127:0] R_display; // HEX decoder does printf("%20X", R_display);
+  reg [127:0] R_display;
+  // HEX decoder does printf("%16X\n%16X\n", R_display[63:0], R_display[127:64]);
   always @(posedge clk_cpu)
     R_display <= { 1'b0, R_btn_joy, cpu_dout, cpu_din, cpu_a, 1'b0 };
 
