@@ -19,7 +19,7 @@ module vram (
   always @(posedge clk_a) begin
     if (we_a) begin
       if (ub_a) ram_ub[addr_a] <= din_a[15:8];
-      if (lb_a) ram_lb[addr_a] <= din_a[15:8];
+      if (lb_a) ram_lb[addr_a] <= din_a[7:0];
     end
     if (re_a) dout_a <= {ram_ub[addr_a], ram_lb[addr_a]};
   end
