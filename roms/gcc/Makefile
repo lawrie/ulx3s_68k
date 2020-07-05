@@ -1,7 +1,6 @@
 # apt-get install gcc-m68k-linux-gnu
 GCC     = m68k-linux-gnu-gcc
-#GCC_OPT = -march=68000 -Os -fomit-frame-pointer -ffreestanding -nostdlib -nostartfiles
-GCC_OPT = -march=68000 -Os -ffreestanding -nostdlib -nostartfiles -fno-exceptions
+GCC_OPT = -march=68000 -Os -fomit-frame-pointer -ffreestanding -nostdlib -nostartfiles
 LD      = m68k-linux-gnu-ld
 OBJCOPY = m68k-linux-gnu-objcopy
 OBJDUMP = m68k-linux-gnu-objdump
