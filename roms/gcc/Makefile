@@ -13,7 +13,7 @@ $(PROJECT).o: $(PROJECT).c
 	$(GCC) $(GCC_OPT) -c $< -o $@
 
 $(PROJECT).bin: $(PROJECT).o
-	$(OBJCOPY) -O binary -j .text $< $@
+	$(OBJCOPY) -O binary $< $@
 
 $(PROJECT).mem: $(PROJECT).bin
 	hexdump -v -e '2/1 "%02X" "\n"' $< > $@
