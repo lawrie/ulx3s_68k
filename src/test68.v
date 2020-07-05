@@ -175,6 +175,7 @@ module test68
   wire [15:0] cpu_dout;          // Data from CPU
   wire [23:1] cpu_a;             // Address
   reg  halt_n = 1'b1;            // Halt request
+  reg [7:0] R_cpu_control = 0;   // SPI loader
 
   assign cpu_din = cpu_a[17:15] < 2  ? rom_dout :
                    cpu_a[17:15] == 2 ? vga_dout :
@@ -280,6 +281,23 @@ module test68
   // Used for interrupt to ESP32
   assign wifi_gpio0 = ~irq;
 
+  reg [7:0] R_spi_ram_byte[0:1];
+  reg R_spi_ram_wr;
+  reg spi_ram_word_wr;
+  always @(posedge clk_cpu)
+  begin
+    R_spi_ram_wr <= spi_ram_wr;
+    if(spi_ram_wr == 1'b1)
+    begin
+      if(spi_ram_addr[31:24] == 8'hFF)
+	R_cpu_control <= spi_ram_di;
+      else
+	R_spi_ram_byte[spi_ram_addr[0]] <= spi_ram_di;
+    end
+    spi_ram_word_wr <= spi_ram_addr[31:24] == 8'h00 && spi_ram_addr[0] == 1'b1 ? spi_ram_wr & ~R_spi_ram_wr : 1'b0;
+  end
+  wire [15:0] spi_ram_word = { R_spi_ram_byte[0], R_spi_ram_byte[1] };
+
   // ===============================================================
   // SDRAM or BRAM for rom
   // ===============================================================
@@ -324,9 +342,9 @@ module test68
   gamerom #(.MEM_INIT_FILE("../roms/test.mem")) 
   rom16 (
     .clk(clk_cpu),
-    .we_b(spi_ram_wr && spi_ram_addr[31:24] == 8'h00), // used by OSD
-    .addr_b(spi_ram_addr[14:0]),
-    .din_b(spi_ram_di),
+    .we_b(spi_ram_word_wr), // used by OSD
+    .addr_b(spi_ram_addr[15:1]),
+    .din_b(spi_ram_word),
     .addr(cpu_a[15:1]),
     .dout(rom_dout)
   );
