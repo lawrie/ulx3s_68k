@@ -205,7 +205,7 @@ module test68
     // input
     .clk( clk_cpu),
     .HALTn(halt_n),
-    .extReset(!btn[0] || !pwr_up_reset_n),
+    .extReset(!btn[0] || !pwr_up_reset_n || R_cpu_control[0]),
     .pwrUp(!pwr_up_reset_n),
     .enPhi1(fx68_phi1),
     .enPhi2(fx68_phi2),
