@@ -1,10 +1,10 @@
 `default_nettype none
 module test68
 #(
-  parameter c_slowdown    = 20, // CPU clock slowdown 2^n times (try 20-22)
-  parameter c_lcd_hex     = 1, // SPI lcd HEX decoder
+  parameter c_slowdown    = 0, // CPU clock slowdown 2^n times (try 20-22)
+  parameter c_lcd_hex     = 0, // SPI lcd HEX decoder
   parameter c_sdram       = 0, // 1:SDRAM, 0:BRAM 32K
-  parameter c_vga_out     = 0, // 0; Just HDMI, 1: VGA and HDMI
+  parameter c_vga_out     = 0, // 0: Just HDMI, 1: VGA and HDMI
   parameter c_diag        = 0  // 0: No led diagnostcs, 1: led diagnostics
 )
 (
