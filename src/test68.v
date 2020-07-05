@@ -1,6 +1,7 @@
 `default_nettype none
 module test68
 #(
+  parameter c_slowdown    = 0, // CPU clock slowdown 2^n times (try 22)
   parameter c_sdram       = 0, // 1:SDRAM, 0:BRAM 32K
   parameter c_vga_out     = 0, // 0; Just HDMI, 1: VGA and HDMI
   parameter c_diag        = 0  // 0: No led diagnostcs, 1: led diagnostics
@@ -147,8 +148,7 @@ module test68
   // 68000 CPU
   // ===============================================================
   reg  fx68_phi1;                // Phi 1 enable
-  //reg  fx68_phi2;                // Phi 2 enable (for slow cpu)
-  wire fx68_phi2 = !fx68_phi1;   // Phi 2 enable
+  reg  fx68_phi2;                // Phi 2 enable (for slow cpu)
   wire cpu_rw;                   // Read = 1, Write = 0
   wire cpu_as_n;                 // Address strobe
   wire cpu_lds_n;                // Lower byte
@@ -179,16 +179,25 @@ module test68
                    cpu_a[17:15] == 2 ? vga_dout :
 		                       ram_dout;
 
-  // Used for slowed-down CPU
-  //reg [23:0] delay_cnt;
-  //always @(posedge clk_cpu) delay_cnt <= delay_cnt + 1;
-
-  // Run 68k cpu at 12.5 Mhz
-  always @(posedge clk_cpu) begin
-    //fx68_phi1 <= delay_cnt == 0;
-    //fx68_phi2 <= delay_cnt == 24'h80000;
-    fx68_phi1 <= ~fx68_phi1;
-  end
+  generate
+    if(c_slowdown)
+    begin
+      // Run 68k CPU SLOW
+      reg [c_slowdown-1:0] delay_cnt;
+      always @(posedge clk_cpu)
+      begin
+        fx68_phi1 <= delay_cnt == 0;
+        fx68_phi2 <= delay_cnt == {1'b1,{(c_slowdown-1){1'b0}}};
+        delay_cnt <= delay_cnt + 1;
+      end
+    end
+    else // c_slowdown == 0, Run 68k CPU at 12.5 MHz
+      always @(posedge clk_cpu)
+      begin
+        fx68_phi1 <= ~fx68_phi1;
+        fx68_phi2 <=  fx68_phi1;
+      end
+  endgenerate
 
   fx68k fx68k (
     // input
