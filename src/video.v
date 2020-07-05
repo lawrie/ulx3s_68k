@@ -67,9 +67,9 @@ module video (
   wire [7:0] red   = border ? 8'b0 : pixel[1] ? 8'hff : 8'b0;
   wire [7:0] blue  = border ? 8'b0 : pixel[0] ? 8'hff : 8'b0;
 
-  assign vga_r = !vga_de ? 4'b0 : red;
-  assign vga_g = !vga_de ? 4'b0 : green;
-  assign vga_b = !vga_de ? 4'b0 : blue;
+  assign vga_r = !vga_de ? 8'b0 : red;
+  assign vga_g = !vga_de ? 8'b0 : green;
+  assign vga_b = !vga_de ? 8'b0 : blue;
 
 endmodule
 
