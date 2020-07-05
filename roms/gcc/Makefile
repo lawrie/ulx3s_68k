@@ -1,9 +1,9 @@
 GCC     = m68k-linux-gnu-gcc
-GCC_OPT = -fomit-frame-pointer -ffreestanding -nostdlib -nostartfiles -Os
+GCC_OPT = -march=68000 -fomit-frame-pointer -ffreestanding -nostdlib -nostartfiles -Os
 OBJCOPY = m68k-linux-gnu-objcopy
 OBJDUMP = m68k-linux-gnu-objdump
 
-PROJECT = test
+PROJECT = fill
 
 all: $(PROJECT).mem $(PROJECT).dis
 
