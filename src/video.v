@@ -58,9 +58,8 @@ module video (
 
   always @(posedge clk) begin
     if (hc[0] && hc < HA) begin
-      //if (x[2:0] == 6) vid_addr <=  {y, x1[7:1]};
-      if (x[2:0] == 6) vid_addr <=  0;
-      else if (x[2:0] == 7) pixels <= vid_dout;
+      if (x[0]) vid_addr <=  {y, x1[7:1]};
+      else pixels <= vid_dout;
     end
   end
 
