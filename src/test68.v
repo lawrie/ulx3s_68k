@@ -1,7 +1,8 @@
 `default_nettype none
 module test68
 #(
-  parameter c_slowdown    = 0, // CPU clock slowdown 2^n times (try 22)
+  parameter c_slowdown    = 20, // CPU clock slowdown 2^n times (try 20-22)
+  parameter c_lcd_hex     = 1, // SPI lcd HEX decoder
   parameter c_sdram       = 0, // 1:SDRAM, 0:BRAM 32K
   parameter c_vga_out     = 0, // 0; Just HDMI, 1: VGA and HDMI
   parameter c_diag        = 0  // 0: No led diagnostcs, 1: led diagnostics
@@ -451,6 +452,9 @@ module test68
   //always @(posedge clk_cpu) diag16 = cpu_a[16:1];
   //always @(posedge clk_cpu) diag16 = cpu_a[16:1];
 
+  generate
+  if(c_lcd_hex)
+  begin
   // SPI DISPLAY
   reg [127:0] R_display;
   // HEX decoder does printf("%16X\n%16X\n", R_display[63:0], R_display[127:64]);
@@ -511,6 +515,8 @@ module test68
   );
   //assign oled_csn = w_oled_csn; // 8-pin ST7789: oled_csn is connected to CSn
   assign oled_csn = 1; // 7-pin ST7789: oled_csn is connected to BLK (backlight enable pin)
+  end
+  endgenerate
 
 endmodule
 
