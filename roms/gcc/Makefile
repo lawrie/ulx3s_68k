@@ -1,0 +1,25 @@
+GCC     = m68k-linux-gnu-gcc-10
+GCC_OPT = -fomit-frame-pointer -ffreestanding -nostdlib -nostartfiles -Os
+OBJCOPY = m68k-linux-gnu-objcopy
+OBJDUMP = m68k-linux-gnu-objdump
+
+PROJECT = test
+
+all: $(PROJECT).mem $(PROJECT).dis
+
+erase_files = $(PROJECT).o $(PROJECT).bin $(PROJECT).mem *~
+
+$(PROJECT).o: $(PROJECT).c
+	$(GCC) $(GCC_OPT) -c $< -o $@
+
+$(PROJECT).bin: $(PROJECT).o
+	$(OBJCOPY) -O binary -j .text $< $@
+
+$(PROJECT).mem: $(PROJECT).bin
+	hexdump -v -e '2/1 "%02X" "\n"' $< > $@
+
+$(PROJECT).dis: $(PROJECT).o
+	$(OBJDUMP) -d $<
+
+clean:
+	rm -f $(erase_files)
