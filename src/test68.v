@@ -81,7 +81,7 @@ module test68
   wire clk_cpu   = clocks[1];
   wire clk_sdram = clocks[2];
   wire sdram_clk = clocks[3];
-  wire sdram_cke = 1'b1;
+  assign sdram_cke = 1'b1;
 
   // ===============================================================
   // Reset generation
