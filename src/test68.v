@@ -80,7 +80,7 @@ module test68
   wire clk_vga   = clocks[1];
   wire clk_cpu   = clocks[1];
   wire clk_sdram = clocks[2];
-  wire sdram_clk = clocks[2]; // phase shifted for chip
+  wire sdram_clk = clocks[2];
   wire sdram_cke = 1'b1;
 
   // ===============================================================
