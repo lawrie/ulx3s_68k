@@ -67,7 +67,7 @@ module test68
     .out0_hz(125*1000000),
     .out1_hz( 25*1000000),
     .out2_hz(100*1000000),                // SDRAM core
-    .out3_hz(100*1000000), .out3_deg(180) // SDRAM chip 45-330:ok 0-30:not
+    .out3_hz(100*1000000), .out3_deg(90)  // SDRAM chip 45-330:ok 0-30:not
   )
   ecp5pll_inst
   (
@@ -80,7 +80,7 @@ module test68
   wire clk_vga   = clocks[1];
   wire clk_cpu   = clocks[1];
   wire clk_sdram = clocks[2];
-  wire sdram_clk = clocks[2];
+  wire sdram_clk = clocks[3];
   wire sdram_cke = 1'b1;
 
   // ===============================================================
@@ -320,10 +320,10 @@ module test68
     .clk_8_en(fx68_phi1),
     .init(!clk_sdram_locked),
     // SPI interface
-    .we(spi_ram_word_wr),
+    .we(R_cpu_control[1] ? spi_ram_word_wr : 1'b0),
     .addr(spi_ram_addr[23:1]),
     .din(spi_ram_word),
-    .req(R_cpu_control[1] ? spi_ram_word_wr | (spi_ram_rd == 1'b1 && spi_ram_addr[31:24] == 8'h00) : cpu_rw),
+    .req(R_cpu_control[1] ? (spi_ram_word_wr | (spi_ram_rd == 1'b1 && spi_ram_addr[31:24] == 8'h00)) : cpu_rw),
     .ds(2'b11),
     .dout(spi_ram_do),
     // ROM access port
