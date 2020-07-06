@@ -2,8 +2,8 @@
 module test68
 #(
   parameter c_slowdown    = 0, // CPU clock slowdown 2^n times (try 20-22)
-  parameter c_lcd_hex     = 0, // SPI lcd HEX decoder
-  parameter c_sdram       = 0, // 1:SDRAM, 0:BRAM 32K
+  parameter c_lcd_hex     = 1, // SPI lcd HEX decoder
+  parameter c_sdram       = 1, // 1:SDRAM, 0:BRAM 32K
   parameter c_vga_out     = 0, // 0: Just HDMI, 1: VGA and HDMI
   parameter c_diag        = 0  // 0: No led diagnostcs, 1: led diagnostics
 )
@@ -319,10 +319,10 @@ module test68
     .clk_8_en(fx68_phi1),
     .init(!clk_sdram_locked),
     // SPI interface
-    .we(spi_ram_wr && spi_ram_addr[31:24] == 8'h00),
-    .addr(spi_ram_addr[23:0]),
-    .din(spi_ram_di),
-    .req(spi_ram_rd),
+    .we(spi_ram_word_wr),
+    .addr(spi_ram_addr[23:1]),
+    .din(spi_ram_word),
+    .req(spi_ram_word_wr),
     .ds(2'b11),
     .dout(spi_ram_do),
     // ROM access port
