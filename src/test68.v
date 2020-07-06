@@ -327,7 +327,7 @@ module test68
     .ds(2'b11),
     .dout(spi_ram_do),
     // ROM access port
-    .rom_oe(cpu_rw),
+    .rom_oe(R_cpu_control[1] ? 1'b0 : cpu_rw),
     .rom_addr(cpu_a),
     .rom_dout(rom_dout)
   );
