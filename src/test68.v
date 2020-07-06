@@ -323,7 +323,7 @@ module test68
     .we(spi_ram_word_wr),
     .addr(spi_ram_addr[23:1]),
     .din(spi_ram_word),
-    .req(R_cpu_control[1] ? spi_ram_word_wr : cpu_rw),
+    .req(R_cpu_control[1] ? spi_ram_word_wr | (spi_ram_rd == 1'b1 && spi_ram_addr[31:24] == 8'h00) : cpu_rw),
     .ds(2'b11),
     .dout(spi_ram_do),
     // ROM access port
