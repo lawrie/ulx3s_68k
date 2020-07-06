@@ -301,42 +301,34 @@ module test68
   // ===============================================================
   // SDRAM or BRAM for rom
   // ===============================================================
-  wire sdram_d_wr;
-  wire [15:0] sdram_d_in;
-  wire [15:0] sdram_d_out;
-  assign sdram_d = sdram_d_wr ? sdram_d_out : 16'hzzzz;
-  assign sdram_d_in = sdram_d;
   generate
   if(c_sdram)
   sdram
   sdram_i
   (
-   .sd_data_in(sdram_d_in),
-   .sd_data_out(sdram_d_out),
-   .sd_addr(sdram_a),
-   .sd_dqm(sdram_dqm),
-   .sd_cs(sdram_csn),
-   .sd_ba(sdram_ba),
-   .sd_we(sdram_wen),
-   .sd_ras(sdram_rasn),
-   .sd_cas(sdram_casn),
-   // system interface
-   .clk(clk_sdram),
-   .clkref(fx68_phi1),
-   .init(!clk_sdram_locked),
-   .we_out(sdram_d_wr),
-   // cpu/chipset interface
-   .weA(!cpu_rw),
-   .addrA(cpu_a),
-   .oeA(cpu_rw),
-   .dinA(cpu_dout),
-   .doutA(rom_dout),
-   // SPI interface
-   .weB(spi_ram_wr && spi_ram_addr[31:24] == 8'h00),
-   .addrB(spi_ram_addr[23:0]),
-   .dinB(spi_ram_di),
-   .oeB(spi_ram_rd),
-   .doutB(spi_ram_do)
+    .sd_data(sdram_d),
+    .sd_addr(sdram_a),
+    .sd_dqm(sdram_dqm),
+    .sd_cs(sdram_csn),
+    .sd_ba(sdram_ba),
+    .sd_we(sdram_wen),
+    .sd_ras(sdram_rasn),
+    .sd_cas(sdram_casn),
+    // system interface
+    .clk_96(clk_sdram),
+    .clk_8_en(fx68_phi1),
+    .init(!clk_sdram_locked),
+    // SPI interface
+    .we(spi_ram_wr && spi_ram_addr[31:24] == 8'h00),
+    .addr(spi_ram_addr[23:0]),
+    .din(spi_ram_di),
+    .req(spi_ram_rd),
+    .ds(2'b11),
+    .dout(spi_ram_do),
+    // ROM access port
+    .rom_oe(cpu_rw),
+    .rom_addr(cpu_a),
+    .rom_dout(rom_dout)
   );
   else
   gamerom #(.MEM_INIT_FILE("../roms/test.mem")) 

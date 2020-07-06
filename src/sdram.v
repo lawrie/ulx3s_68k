@@ -1,9 +1,8 @@
 //
 // sdram.v
 //
-// sdram controller implementation for the MiST board adaptation
-// of Luddes NES core
-// http://code.google.com/p/mist-board/
+// sdram controller implementation for the MiST board
+// https://github.com/mist-devel/mist-board
 // 
 // Copyright (c) 2013 Till Harbaum <till@harbaum.org> 
 // 
@@ -21,43 +20,44 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>. 
 //
 
-module sdram
-(
+// TODO:
+// - optional 64 bit burst read
+// - setup of address+data earlier for increased stability?
+
+module sdram (
+
 	// interface to the MT48LC16M16 chip
-        input     [15:0] sd_data_in,
-        output    [15:0] sd_data_out,
-	output    [12:0] sd_addr,    // 13 bit multiplexed address bus
-	output     [1:0] sd_dqm,     // two byte masks
-	output     [1:0] sd_ba,      // two banks
-	output           sd_cs,      // a single chip select
-	output           sd_we,      // write enable
-	output           sd_ras,     // row address select
-	output           sd_cas,     // columns address select
+	inout  reg [15:0]	sd_data,    // 16 bit bidirectional data bus
+	output reg [12:0]	sd_addr,    // 13 bit multiplexed address bus
+	output reg [1:0] 	sd_dqm,     // two byte masks
+	output reg [1:0] 	sd_ba,      // two banks
+	output 				sd_cs,      // a single chip select
+	output 				sd_we,      // write enable
+	output 				sd_ras,     // row address select
+	output 				sd_cas,     // columns address select
 
 	// cpu/chipset interface
-	input            init,       // init signal after FPGA config to initialize RAM
-	input            clk,        // sdram is accessed at up to 128MHz
-	input            clkref,     // reference clock to sync to
-	output           we_out, // Tristate control signal
-	
-	input     [24:0] addrA,      // 25 bit byte address
-	input            weA,        // cpu/chipset requests write
-	input      [7:0] dinA,       // data input from chipset/cpu
-	input            oeA,        // cpu requests data
-	output reg [7:0] doutA,      // data output to cpu
+	input             init,       // init signal after FPGA config to initialize RAM
+	input             clk_96,     // sdram is accessed at 96MHz
+	input             clk_8_en,   // 8MHz chipset clock to which sdram state machine is synchonized
 
-	input     [24:0] addrB,      // 25 bit byte address
-	input            weB,        // cpu/chipset requests write
-	input      [7:0] dinB,       // data input from chipset/cpu
-	input            oeB,        // ppu requests data
-	output reg [7:0] doutB       // data output to ppu
+	input      [15:0]	din,        // data input from chipset/cpu
+	output reg [63:0] dout64,     // data output to chipset/cpu
+	output reg [15:0] dout,
+	input      [23:0] addr,       // 24 bit word address
+	input      [1:0]  ds,         // upper/lower data strobe
+	input             req,        // cpu/chipset requests read/write
+	input             we,         // cpu/chipset requests write
+
+	input             rom_oe,
+	input [23:0]      rom_addr,
+	output reg [15:0] rom_dout
 );
 
-// no burst configured
-localparam RASCAS_DELAY   = 3'd2;   // tRCD=20ns -> 2 cycles@85MHz
-localparam BURST_LENGTH   = 3'b000; // 000=1, 001=2, 010=4, 011=8
+localparam RASCAS_DELAY   = 3'd2;   // tRCD=20ns -> 2 cycles@96MHz
+localparam BURST_LENGTH   = 3'b010; // 000=1, 001=2, 010=4, 011=8
 localparam ACCESS_TYPE    = 1'b0;   // 0=sequential, 1=interleaved
-localparam CAS_LATENCY    = 3'd3;   // 2/3 allowed
+localparam CAS_LATENCY    = 3'd2;   // 2/3 allowed
 localparam OP_MODE        = 2'b00;  // only 00 (standard operation) allowed
 localparam NO_WRITE_BURST = 1'b1;   // 0= write burst enabled, 1=only single access write
 
@@ -68,37 +68,34 @@ localparam MODE = { 3'b000, NO_WRITE_BURST, OP_MODE, CAS_LATENCY, ACCESS_TYPE, B
 // ------------------------ cycle state machine ------------------------
 // ---------------------------------------------------------------------
 
-localparam STATE_FIRST     = 3'd0;   // first state in cycle
-localparam STATE_CMD_START = 3'd1;   // state in which a new command can be started
-localparam STATE_CMD_CONT  = STATE_CMD_START + RASCAS_DELAY;      // 3 command can be continued
-localparam STATE_CMD_READ  = STATE_CMD_CONT + CAS_LATENCY + 1'd1; // 6 read state
-localparam STATE_LAST      = 3'd7;  // last state in cycle
+// The state machine runs at 128Mhz synchronous to the 8 Mhz chipset clock.
+// It wraps from T15 to T0 on the rising edge of clk_8
 
-reg clkref_last;
-reg [2:0] q;
-always @(posedge clk) begin
-	// SDRAM (state machine) clock is 85MHz. Synchronize this to systems 21.477 Mhz clock
-   // force counter to pass state LAST->FIRST exactly after the rising edge of clkref
-   clkref_last <= clkref;
+localparam STATE_FIRST     = 4'd0;   // first state in cycle
+localparam STATE_CMD_CONT  = STATE_FIRST  + RASCAS_DELAY; // command can be continued
+localparam STATE_READ      = STATE_CMD_CONT + CAS_LATENCY + 2'd2;
+localparam STATE_LAST      = 4'd11;  // last state in cycle
 
-   q <= q + 1'd1;
-   if (q==STATE_LAST) q<=STATE_FIRST;
-   if (~clkref_last & clkref) q<=STATE_FIRST + 1'd1;
+reg [3:0] t;
+reg clk_8_enD;
 
+always @(posedge clk_96) begin
+	clk_8_enD <= clk_8_en;
+	if (~clk_8_enD & clk_8_en) t <= 4'hA; else t <= t + 1'd1;
+	if (t == STATE_LAST) t <= STATE_FIRST;
 end
 
 // ---------------------------------------------------------------------
 // --------------------------- startup/reset ---------------------------
 // ---------------------------------------------------------------------
 
-// wait 1ms (85000 cycles) after FPGA config is done before going
+// wait 1ms (32 8Mhz cycles) after FPGA config is done before going
 // into normal operation. Initialize the ram in the last 16 reset cycles (cycles 15-0)
-reg [16:0] reset;
-always @(posedge clk) begin
-	//if(init)	reset <= 17'h14c08;
-	if(init)	reset <= 17'h1f;
-	else if((q == STATE_LAST) && (reset != 0))
-		reset <= reset - 17'd1;
+reg [4:0] reset;
+always @(posedge clk_96) begin
+	if(init)	reset <= 5'h1f;
+	else if((t == STATE_LAST) && (reset != 0))
+		reset <= reset - 5'd1;
 end
 
 // ---------------------------------------------------------------------
@@ -116,59 +113,109 @@ localparam CMD_PRECHARGE       = 4'b0010;
 localparam CMD_AUTO_REFRESH    = 4'b0001;
 localparam CMD_LOAD_MODE       = 4'b0000;
 
-wire [3:0] sd_cmd;   // current command sent to sd ram
-
-// clkref high - CPU
-// clkref low  - PPU
-wire        oe = clkref ? oeA : oeB;
-assign        we_out = clkref ? weA : weB;
-wire [24:0] addr = clkref ? addrA : addrB;
-wire  [7:0] din = clkref ? dinA : dinB;
-
-reg addr0;
-always @(posedge clk)
-	if((q == 1) && oe) addr0 <= addr[0];
-
-wire [7:0] dout = addr0?sd_data_in[7:0]:sd_data_in[15:8];
-
-always @(posedge clk) begin
-	if(q == STATE_CMD_READ) begin
-		if(oeA &&  clkref) doutA <= dout;
-		if(oeB && !clkref) doutB <= dout;
-	end
-end
-
-wire [3:0] reset_cmd = 
-	((q == STATE_CMD_START) && (reset == 13))?CMD_PRECHARGE:
-	((q == STATE_CMD_START) && (reset ==  2))?CMD_LOAD_MODE:
-	CMD_INHIBIT;
-
-wire [3:0] run_cmd =
-	((we_out || oe) && (q == STATE_CMD_START))?CMD_ACTIVE:
-	( we_out        && (q == STATE_CMD_CONT ))?CMD_WRITE:
-	(!we_out &&  oe && (q == STATE_CMD_CONT ))?CMD_READ:
-	(!we_out && !oe && (q == STATE_CMD_START))?CMD_AUTO_REFRESH:
-	CMD_INHIBIT;
-
-assign sd_cmd = (reset != 0)?reset_cmd:run_cmd;
-
-wire [12:0] reset_addr = (reset == 13)?13'b0010000000000:MODE;
-
-wire [12:0] run_addr = 
-	(q == STATE_CMD_START)?addr[21:9]:{ 4'b0010, addr[24], addr[8:1]};
-
-assign sd_data_out = we_out?{ din, din }:16'b0;
-//register SDRAM output signals
-assign sd_addr = (reset != 0)?reset_addr:run_addr;
-
-assign sd_ba = (reset != 0)?2'b00:addr[23:22];
-
-assign sd_dqm = we_out?{ addr[0], ~addr[0] }:2'b00;
-
+reg [3:0] sd_cmd;   // current command sent to sd ram
 // drive control signals according to current command
 assign sd_cs  = sd_cmd[3];
 assign sd_ras = sd_cmd[2];
 assign sd_cas = sd_cmd[1];
 assign sd_we  = sd_cmd[0];
+
+reg [15:0] sd_din;
+
+// 4 byte read burst goes through four addresses
+reg [1:0] burst_addr;
+
+reg [15:0] data_latch;
+reg [23:0] addr_latch;
+reg [15:0] din_latch;
+reg        req_latch;
+reg        rom_port;
+
+always @(posedge clk_96) begin
+	// permanently latch ram data to reduce delays
+	sd_din <= sd_data;
+	sd_data <= 16'bZZZZZZZZZZZZZZZZ;
+	sd_cmd <= CMD_INHIBIT;  // default: idle
+
+	if(reset != 0) begin
+		// initialization takes place at the end of the reset phase
+		if(t == STATE_FIRST) begin
+
+			if(reset == 13) begin
+				sd_cmd <= CMD_PRECHARGE;
+				sd_addr[10] <= 1'b1;      // precharge all banks
+			end
+
+			if(reset == 2) begin
+				sd_cmd <= CMD_LOAD_MODE;
+				sd_addr <= MODE;
+			end
+
+		end
+	end else begin
+		// normal operation
+		if(t == STATE_FIRST) begin
+			if (req) begin
+				addr_latch <= addr;
+				req_latch <= 1;
+				din_latch <= din;
+				rom_port <= 0;
+
+				// RAS phase
+				sd_cmd <= CMD_ACTIVE;
+				sd_addr <= { 1'b0, addr[19:8] };
+				sd_ba <= addr[21:20];
+
+				// lowest address for burst read
+				burst_addr <= addr[1:0];
+
+			end else if (rom_oe && (addr_latch != rom_addr)) begin
+				addr_latch <= rom_addr;
+				req_latch <= 1;
+				rom_port <= 1;
+
+				// RAS phase
+				sd_cmd <= CMD_ACTIVE;
+				sd_addr <= { 1'b0, rom_addr[19:8] };
+				sd_ba <= rom_addr[21:20];
+				burst_addr <= rom_addr[1:0];
+			end else begin
+				req_latch <= 0;
+				sd_cmd <= CMD_AUTO_REFRESH;
+			end
+		end
+
+		// -------------------  cpu/chipset read/write ----------------------
+		if(req_latch) begin
+
+			// CAS phase 
+			if(t == STATE_CMD_CONT) begin
+				sd_cmd <= we?CMD_WRITE:CMD_READ;
+				if (we) sd_data <= din_latch;
+				// always return both bytes in a read. The cpu may not
+				// need it, but the caches need to be able to store everything
+				sd_dqm <= we ? ~ds : 2'b00;
+
+				sd_addr <= { 4'b0010, addr_latch[22], addr_latch[7:0] };  // auto precharge
+			end
+
+			// read phase
+			if(!we || rom_port) begin
+				if((t >= STATE_READ) && (t < STATE_READ+4'd4)) begin
+					if (burst_addr == addr_latch[1:0]) if (rom_port) rom_dout <= sd_din; else dout <= sd_din;
+					// de-multiplex the data directly into the 64 bit buffer
+					case (burst_addr)
+						2'd0: dout64[15: 0] <= sd_din;
+						2'd1: dout64[31:16] <= sd_din;
+						2'd2: dout64[47:32] <= sd_din;
+						2'd3: dout64[63:48] <= sd_din;
+					endcase
+
+					burst_addr <= burst_addr + 2'd1;
+				end
+			end
+		end
+	end
+end
 
 endmodule
