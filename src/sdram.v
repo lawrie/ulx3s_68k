@@ -27,7 +27,9 @@
 module sdram (
 
 	// interface to the MT48LC16M16 chip
-	inout  reg [15:0]	sd_data,    // 16 bit bidirectional data bus
+	input      [15:0]	sd_data_in,
+	output reg [15:0]	sd_data_out,
+	output reg              sd_data_wr,
 	output reg [12:0]	sd_addr,    // 13 bit multiplexed address bus
 	output reg [1:0] 	sd_dqm,     // two byte masks
 	output reg [1:0] 	sd_ba,      // two banks
@@ -133,9 +135,9 @@ reg        rom_port;
 
 always @(posedge clk_96) begin
 	// permanently latch ram data to reduce delays
-	sd_din <= sd_data;
-	sd_data <= 16'bZZZZZZZZZZZZZZZZ;
 	sd_cmd <= CMD_INHIBIT;  // default: idle
+	sd_din <= sd_data_in;
+	sd_data_wr <= 0;
 
 	if(reset != 0) begin
 		// initialization takes place at the end of the reset phase
@@ -191,7 +193,10 @@ always @(posedge clk_96) begin
 			// CAS phase 
 			if(t == STATE_CMD_CONT) begin
 				sd_cmd <= we?CMD_WRITE:CMD_READ;
-				if (we) sd_data <= din_latch;
+				if (we) begin
+					sd_data_out <= din_latch;
+					sd_data_wr <= 1;
+				end
 				// always return both bytes in a read. The cpu may not
 				// need it, but the caches need to be able to store everything
 				sd_dqm <= we ? ~ds : 2'b00;

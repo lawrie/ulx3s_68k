@@ -3,7 +3,7 @@ module test68
 #(
   parameter c_slowdown    = 0, // CPU clock slowdown 2^n times (try 20-22)
   parameter c_lcd_hex     = 1, // SPI lcd HEX decoder
-  parameter c_sdram       = 1, // 1:SDRAM, 0:BRAM 32K
+  parameter c_sdram       = 0, // 1:SDRAM, 0:BRAM 32K
   parameter c_vga_out     = 0, // 0: Just HDMI, 1: VGA and HDMI
   parameter c_diag        = 0  // 0: No led diagnostcs, 1: led diagnostics
 )
@@ -303,11 +303,20 @@ module test68
   // SDRAM or BRAM for rom
   // ===============================================================
   generate
-  if(c_sdram)
+  if(c_sdram) begin
+
+  // Tristate sdram_d pins when reading
+  wire sdram_d_wr; // SDRAM controller sets this when writing
+  wire [15:0] sdram_d_in, sdram_d_out;
+  assign sdram_d = sdram_d_wr ? sdram_d_out : 16'hzzzz;
+  assign sdram_d_in = sdram_d;
+
   sdram
   sdram_i
   (
-    .sd_data(sdram_d),
+    .sd_data_in(sdram_d_in),
+    .sd_data_out(sdram_d_out),
+    .sd_data_wr(sdram_d_wr),
     .sd_addr(sdram_a),
     .sd_dqm(sdram_dqm),
     .sd_cs(sdram_csn),
@@ -331,6 +340,7 @@ module test68
     .rom_addr(cpu_a),
     .rom_dout(rom_dout)
   );
+  end
   else
   gamerom #(.MEM_INIT_FILE("../roms/test.mem")) 
   rom16 (
