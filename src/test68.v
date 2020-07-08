@@ -1,7 +1,7 @@
 `default_nettype none
 module test68
 #(
-  parameter c_slowdown    = 0, // CPU clock slowdown 2^n times (try 20-22)
+  parameter c_slowdown    = 2, // CPU clock slowdown 2^n times (try 20-22)
   parameter c_lcd_hex     = 1, // SPI lcd HEX decoder
   parameter c_sdram       = 0, // 1:SDRAM, 0:BRAM 32K
   parameter c_vga_out     = 0, // 0: Just HDMI, 1: VGA and HDMI
@@ -294,7 +294,14 @@ module test68
 	R_cpu_control <= spi_ram_di;
       else
 	R_spi_ram_byte[spi_ram_addr[0]] <= spi_ram_di;
+      if(R_spi_ram_wr == 1'b0)
+      begin
+        if(spi_ram_addr[31:24] == 8'h00 && spi_ram_addr[0] == 1'b1)
+          spi_ram_word_wr <= 1'b1;
+      end
     end
+    else
+      spi_ram_word_wr <= 1'b0;
     spi_ram_word_wr <= spi_ram_addr[31:24] == 8'h00 && spi_ram_addr[0] == 1'b1 ? spi_ram_wr & ~R_spi_ram_wr : 1'b0;
   end
   wire [15:0] spi_ram_word = { R_spi_ram_byte[0], R_spi_ram_byte[1] };
@@ -329,14 +336,14 @@ module test68
     .clk_8_en(fx68_phi1),
     .init(!clk_sdram_locked),
     // SPI interface
-    .we(R_cpu_control[1] ? spi_ram_word_wr : 1'b0),
+    .we(R_cpu_control[1] ? (spi_ram_word_wr & fx68_phi1) : 1'b0),
     .addr(spi_ram_addr[23:1]),
     .din(spi_ram_word),
-    .req(R_cpu_control[1] ? (spi_ram_word_wr | (spi_ram_rd == 1'b1 && spi_ram_addr[31:24] == 8'h00)) : cpu_rw),
+    .req(R_cpu_control[1] ? ((spi_ram_word_wr | (spi_ram_rd == 1'b1 && spi_ram_addr[31:24] == 8'h00)) & fx68_phi1) : (cpu_rw & fx68_phi1)),
     .ds(2'b11),
     .dout(spi_ram_do),
     // ROM access port
-    .rom_oe(R_cpu_control[1] ? 1'b0 : cpu_rw),
+    .rom_oe(R_cpu_control[1] ? 1'b0 : (cpu_rw & fx68_phi1)),
     .rom_addr(cpu_a),
     .rom_dout(rom_dout)
   );
