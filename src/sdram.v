@@ -171,7 +171,7 @@ always @(posedge clk_96) begin
 				// lowest address for burst read
 				burst_addr <= addr[1:0];
 
-			end else if (rom_oe && (addr_latch != rom_addr)) begin
+			end else if (rom_oe) begin
 				addr_latch <= rom_addr;
 				req_latch <= 1;
 				rom_port <= 1;
