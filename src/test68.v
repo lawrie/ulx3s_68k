@@ -314,6 +314,7 @@ module test68
 
   wire we = spi_ram_word_wr;
   wire re = spi_ram_addr[31:24] == 8'h00 ? spi_ram_rd : 1'b0;
+  assign rom_dout = ram_do;
   sdram_pnru_68k
   sdram_i
   (
@@ -321,11 +322,11 @@ module test68
     .clk100_mhz(clk_sdram),
     .din (ram_di),
     .dout(ram_do),
-    .addr({1'b0, spi_ram_addr[23:1]}),
-    .udsn(~(we|re)),
-    .ldsn(~(we|re)),
-    .asn (~(we|re)),
-    .rw  (~we),
+    .addr(R_cpu_control[1] ? {1'b0, spi_ram_addr[23:1]} : {1'b0, cpu_a[23:1]}),
+    .udsn(R_cpu_control[1] ? ~(we|re) : cpu_uds_n),
+    .ldsn(R_cpu_control[1] ? ~(we|re) : cpu_lds_n),
+    .asn (R_cpu_control[1] ? ~(we|re) : cpu_as_n),
+    .rw  (R_cpu_control[1] ? ~we      : 1'b1),
     .rst (~clk_sdram_locked),
 
     // sdram side
