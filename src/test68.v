@@ -3,7 +3,7 @@ module test68
 #(
   parameter c_slowdown    = 2, // CPU clock slowdown 2^n times (try 20-22)
   parameter c_lcd_hex     = 1, // SPI lcd HEX decoder
-  parameter c_sdram       = 0, // 1:SDRAM, 0:BRAM 32K
+  parameter c_sdram       = 1, // 1:SDRAM, 0:BRAM 32K
   parameter c_vga_out     = 0, // 0: Just HDMI, 1: VGA and HDMI
   parameter c_diag        = 0  // 0: No led diagnostcs, 1: led diagnostics
 )
@@ -248,9 +248,10 @@ module test68
   // ===============================================================
   // SPI Slave for RAM and CPU control
   // ===============================================================
+  wire [15:0] ram_do; // from SDRAM chip
   wire        spi_ram_wr, spi_ram_rd;
   wire [31:0] spi_ram_addr;
-  wire  [7:0] spi_ram_di;
+  wire  [7:0] spi_ram_di = spi_ram_addr[0] ? ram_do[7:0] : ram_do[15:8];
   wire  [7:0] spi_ram_do;
 
   assign sd_d[0] = 1'bz;
@@ -275,8 +276,8 @@ module test68
     .wr(spi_ram_wr),
     .rd(spi_ram_rd),
     .addr(spi_ram_addr),
-    .data_in(spi_ram_do),
-    .data_out(spi_ram_di)
+    .data_in(spi_ram_di),
+    .data_out(spi_ram_do)
   );
 
   // Used for interrupt to ESP32
@@ -291,9 +292,9 @@ module test68
     if(spi_ram_wr == 1'b1)
     begin
       if(spi_ram_addr[31:24] == 8'hFF)
-	R_cpu_control <= spi_ram_di;
+	R_cpu_control <= spi_ram_do;
       else
-	R_spi_ram_byte[spi_ram_addr[0]] <= spi_ram_di;
+	R_spi_ram_byte[spi_ram_addr[0]] <= spi_ram_do;
       if(R_spi_ram_wr == 1'b0)
       begin
         if(spi_ram_addr[31:24] == 8'h00 && spi_ram_addr[0] == 1'b1)
@@ -302,9 +303,8 @@ module test68
     end
     else
       spi_ram_word_wr <= 1'b0;
-    spi_ram_word_wr <= spi_ram_addr[31:24] == 8'h00 && spi_ram_addr[0] == 1'b1 ? spi_ram_wr & ~R_spi_ram_wr : 1'b0;
   end
-  wire [15:0] spi_ram_word = { R_spi_ram_byte[0], R_spi_ram_byte[1] };
+  wire [15:0] ram_di = { R_spi_ram_byte[0], R_spi_ram_byte[1] }; // to SDRAM chip
 
   // ===============================================================
   // SDRAM or BRAM for rom
@@ -312,6 +312,34 @@ module test68
   generate
   if(c_sdram) begin
 
+  wire we = spi_ram_word_wr;
+  wire re = spi_ram_addr[31:24] == 8'h00 ? spi_ram_rd : 1'b0;
+  sdram_pnru_68k
+  sdram_i
+  (
+    // cpu side
+    .clk100_mhz(clk_sdram),
+    .din (ram_di),
+    .dout(ram_do),
+    .addr({1'b0, spi_ram_addr[23:1]}),
+    .udsn(~(we|re)),
+    .ldsn(~(we|re)),
+    .asn (~(we|re)),
+    .rw  (~we),
+    .rst (~clk_sdram_locked),
+
+    // sdram side
+    .sd_data(sdram_d),
+    .sd_addr(sdram_a),
+    .sd_dqm (sdram_dqm),
+    .sd_ba  (sdram_ba),
+    .sd_cs  (sdram_csn),
+    .sd_we  (sdram_wen),
+    .sd_ras (sdram_rasn),
+    .sd_cas (sdram_casn)
+  );
+
+/*
   // Tristate sdram_d pins when reading
   wire sdram_d_wr; // SDRAM controller sets this when writing
   wire [15:0] sdram_d_in, sdram_d_out;
@@ -347,6 +375,7 @@ module test68
     .rom_addr(cpu_a),
     .rom_dout(rom_dout)
   );
+*/
   end
   else
   gamerom #(.MEM_INIT_FILE("../roms/test.mem")) 
@@ -354,7 +383,7 @@ module test68
     .clk(clk_cpu),
     .we_b(spi_ram_word_wr), // used by OSD
     .addr_b(spi_ram_addr[15:1]),
-    .din_b(spi_ram_word),
+    .din_b(ram_di),
     .addr(cpu_a[15:1]),
     .dout(rom_dout)
   );
