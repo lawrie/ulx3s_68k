@@ -1,11 +1,11 @@
 `default_nettype none
 module test68
 #(
-  parameter c_slowdown    = 2, // CPU clock slowdown 2^n times (try 20-22)
-  parameter c_lcd_hex     = 1, // SPI lcd HEX decoder
-  parameter c_sdram       = 1, // 1:SDRAM, 0:BRAM 32K
+  parameter c_slowdown    = 0, // CPU clock slowdown 2^n times (try 20-22)
+  parameter c_lcd_hex     = 1, // SPI LCD HEX decoder
+  parameter c_sdram       = 1, // 0: BRAM 32K,  1: SDRAM, 
   parameter c_vga_out     = 0, // 0: Just HDMI, 1: VGA and HDMI
-  parameter c_diag        = 0  // 0: No led diagnostcs, 1: led diagnostics
+  parameter c_diag        = 0  // 0: No LED diagnostcs, 1: LED diagnostics
 )
 (
   input         clk25_mhz,
@@ -320,6 +320,7 @@ module test68
   (
     // cpu side
     .clk100_mhz(clk_sdram),
+    .rst (~clk_sdram_locked),
     .din (ram_di),
     .dout(ram_do),
     .addr(R_cpu_control[1] ? {1'b0, spi_ram_addr[23:1]} : {1'b0, cpu_a[23:1]}),
@@ -327,7 +328,6 @@ module test68
     .ldsn(R_cpu_control[1] ? ~(we|re) : cpu_lds_n),
     .asn (R_cpu_control[1] ? ~(we|re) : cpu_as_n),
     .rw  (R_cpu_control[1] ? ~we      : 1'b1),
-    .rst (~clk_sdram_locked),
 
     // sdram side
     .sd_data(sdram_d),
