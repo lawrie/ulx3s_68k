@@ -11,11 +11,11 @@ all: $(PROJECT).mem # $(PROJECT).dis
 
 erase_files = $(PROJECT).o $(PROJECT).bin $(PROJECT).mem *~
 
-$(PROJECT).o: $(PROJECT).c
-	$(GCC) $(GCC_OPT) -c $< -o $@
+$(PROJECT).bin: $(PROJECT).c
+	$(GCC) $(GCC_OPT) $< -Wl,-Tlinker_script.ld -o $@
 
-$(PROJECT).bin: $(PROJECT).o
-	$(LD) -T linker_script.ld $< -o $@
+#$(PROJECT).bin: $(PROJECT).o
+#	$(LD) -T linker_script.ld $< -o $@
 
 $(PROJECT).mem: $(PROJECT).bin
 	hexdump -v -e '2/1 "%02X" "\n"' $< > $@
