@@ -403,6 +403,3 @@ except:
   print(bitstream+" file not found")
 gc.collect()
 run=osd()
-
-# osd.run.peek(0,4)
-# osd.run.poke(0,"abcd")
