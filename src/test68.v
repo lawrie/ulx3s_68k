@@ -67,7 +67,7 @@ module test68
     .out0_hz(125*1000000),
     .out1_hz( 25*1000000),
     .out2_hz(100*1000000),                // SDRAM core
-    .out3_hz(100*1000000), .out3_deg(90)  // SDRAM chip 45-330:ok 0-30:not
+    .out3_hz(125*1000000), .out3_deg(90)  // SDRAM chip 45-330:ok 0-30:not
   )
   ecp5pll_inst
   (
@@ -79,7 +79,7 @@ module test68
   wire clk_hdmi  = clocks[0];
   wire clk_vga   = clocks[1];
   wire clk_cpu   = clocks[1];
-  wire clk_sdram = clocks[2];
+  wire clk_sdram = clocks[0];
   wire sdram_clk = clocks[3];
   assign sdram_cke = 1'b1;
 
@@ -178,9 +178,15 @@ module test68
   reg  halt_n = 1'b1;            // Halt request
   reg [7:0] R_cpu_control = 0;   // SPI loader
 
-  assign cpu_din = // cpu_a[17:15] < 2  ? rom_dout :
+  generate
+  if(c_sdram) // SDRAM as ROM and RAM, BRAM as video
+  assign cpu_din = cpu_a[17:15] == 2 ? vga_dout :
+   		                       ram_dout;
+  else // BRAM all
+  assign cpu_din = cpu_a[17:15] < 2  ? rom_dout :
                    cpu_a[17:15] == 2 ? vga_dout :
-		                       ram_dout;
+   		                       ram_dout;
+  endgenerate
 
   generate
     if(c_slowdown)
@@ -390,13 +396,9 @@ module test68
     .addr(cpu_a[15:1]),
     .dout(rom_dout)
   );
-  end
-  endgenerate
-
   // ===============================================================
   // Ram
   // ===============================================================
-  /*
   ram ram32 (
     .clk(clk_cpu),
     .addr(cpu_a[14:1]),
@@ -406,7 +408,9 @@ module test68
     .ub(!cpu_uds_n),
     .lb(!cpu_lds_n)
   );
-  */
+  end
+  endgenerate
+
 
 
   // ===============================================================
