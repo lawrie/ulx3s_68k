@@ -103,8 +103,8 @@ module test68
   assign usb_fpga_pu_dn = 1;
 
   // Passthru to ESP32 micropython serial console
-  assign wifi_rxd = ftdi_txd;
-  assign ftdi_rxd = wifi_txd;
+  //assign wifi_rxd = ftdi_txd;
+  //assign ftdi_rxd = wifi_txd;
 
   // ===============================================================
   // Optional VGA output
@@ -157,13 +157,13 @@ module test68
   wire cpu_uds_n;                // Upper byte
   wire cpu_E;                    // Peripheral enable
   wire vma_n;                    // Valid memory address
-  reg  vpa_n = 1'b0;             // Valid peripheral address
+  reg  vpa_n;                    // Valid peripheral address
   wire cpu_fc0;                  // Processor state
   wire cpu_fc1;
   wire cpu_fc2;
   reg  berr_n = 1'b1;            // Bus error.
   wire cpu_reset_n_o;            // Reset output signal
-  reg  dtack_n = 1'b0;           // Data transfer ack (always ready)
+  reg  dtack_n = !vpa_n;         // Data transfer ack (always ready)
   wire bg_n;                     // Bus grant
   reg  bgack_n = 1'b1;           // Bus grant ack
   reg  ipl0_n = 1'b1;            // Interrupt request signals
@@ -177,14 +177,21 @@ module test68
   wire [23:1] cpu_a;             // Address
   reg  halt_n = 1'b1;            // Halt request
   reg [7:0] R_cpu_control = 0;   // SPI loader
+  wire acia_cs = !vma_n;
+  wire [7:0] acia_dout;
+
+  // Address 0x600000 to 6fffff used for peripherals
+  assign vpa_n = !(cpu_a[23:18]==6'b011000) | cpu_as_n;
 
   generate
   if(c_sdram) // SDRAM as ROM and RAM, BRAM as video
   assign cpu_din = cpu_a[17:15] == 2 ? vga_dout :
+		   acia_cs           ? {8'd0, acia_dout} :
    		                       ram_dout;
   else // BRAM all
   assign cpu_din = cpu_a[17:15] < 2  ? rom_dout :
                    cpu_a[17:15] == 2 ? vga_dout :
+		   acia_cs           ? {8'd0, acia_dout} :
    		                       ram_dout;
   endgenerate
 
@@ -216,6 +223,7 @@ module test68
     .pwrUp(!pwr_up_reset_n),
     .enPhi1(fx68_phi1),
     .enPhi2(fx68_phi2),
+
     // output
     .eRWn(cpu_rw),
     .ASn(cpu_as_n),
@@ -229,6 +237,7 @@ module test68
     .BGn(bg_n),
     .oRESETn(cpu_reset_n_o),
     .oHALTEDn(),
+
     // input
     .DTACKn(dtack_n),
     .VPAn(vpa_n),
@@ -238,13 +247,43 @@ module test68
     .IPL0n(ipl0_n),
     .IPL1n(ipl1_n),
     .IPL2n(ipl2_n),
+
+    // busses
     .iEdb(cpu_din),
-    // output
     .oEdb(cpu_dout),
     .eab(cpu_a)
   );
 
   // ===============================================================
+  // 6850 ACIA (uart)
+  // ===============================================================
+  reg baudclk; // 16 * 9600 = 153600 = 25Mhz/163
+  reg [7:0] baudctr = 0;
+  always @(posedge clk_cpu) begin
+    baudctr <= baudctr + 1;
+    baudclk <= (baudctr > 81);
+    if(baudctr > 162) baudctr <= 0;
+  end
+
+  // 9600 8N1
+  ACIA acia(
+    .clk(clk_cpu),
+    .reset(!pwr_up_reset_n),
+    .cs(acia_cs),
+    .e_clk(cpu_E),
+    .rw_n(cpu_rw),
+    .rs(cpu_a[1]),
+    .data_in(cpu_dout[7:0]),
+    .data_out(acia_dout),
+    .txclk(baudclk),
+    .rxclk(baudclk),
+    .cts_n(1'b0),
+    .dcd_n(1'b0),
+    .txdata(ftdi_rxd),
+    .rxdata(ftdi_txd)
+  );
+
+  // ====================================================
   // Joystick for OSD control and games
   // ===============================================================
   reg [6:0] R_btn_joy;
@@ -346,44 +385,6 @@ module test68
     .sd_ras (sdram_rasn),
     .sd_cas (sdram_casn)
   );
-
-/*
-  // Tristate sdram_d pins when reading
-  wire sdram_d_wr; // SDRAM controller sets this when writing
-  wire [15:0] sdram_d_in, sdram_d_out;
-  assign sdram_d = sdram_d_wr ? sdram_d_out : 16'hzzzz;
-  assign sdram_d_in = sdram_d;
-
-  sdram
-  sdram_i
-  (
-    .sd_data_in(sdram_d_in),
-    .sd_data_out(sdram_d_out),
-    .sd_data_wr(sdram_d_wr),
-    .sd_addr(sdram_a),
-    .sd_dqm(sdram_dqm),
-    .sd_cs(sdram_csn),
-    .sd_ba(sdram_ba),
-    .sd_we(sdram_wen),
-    .sd_ras(sdram_rasn),
-    .sd_cas(sdram_casn),
-    // system interface
-    .clk_96(clk_sdram),
-    .clk_8_en(fx68_phi1),
-    .init(!clk_sdram_locked),
-    // SPI interface
-    .we(R_cpu_control[1] ? (spi_ram_word_wr & fx68_phi1) : 1'b0),
-    .addr(spi_ram_addr[23:1]),
-    .din(spi_ram_word),
-    .req(R_cpu_control[1] ? ((spi_ram_word_wr | (spi_ram_rd == 1'b1 && spi_ram_addr[31:24] == 8'h00)) & fx68_phi1) : (cpu_rw & fx68_phi1)),
-    .ds(2'b11),
-    .dout(spi_ram_do),
-    // ROM access port
-    .rom_oe(R_cpu_control[1] ? 1'b0 : (cpu_rw & fx68_phi1)),
-    .rom_addr(cpu_a),
-    .rom_dout(rom_dout)
-  );
-*/
   end
   else
   begin
@@ -411,8 +412,6 @@ module test68
   );
   end
   endgenerate
-
-
 
   // ===============================================================
   // Keyboard (not yet implemented)
@@ -514,11 +513,7 @@ module test68
   // ===============================================================
   // Diagnostic leds
   // ===============================================================
-  //assign leds = {cpu_fc2, cpu_fc1, cpu_fc0};
-  assign leds = cpu_dout;
-
-  //always @(posedge clk_cpu) diag16 = cpu_a[16:1];
-  //always @(posedge clk_cpu) diag16 = cpu_a[16:1];
+  assign leds = {cpu_fc2, cpu_fc1, cpu_fc0};
 
   generate
   if(c_lcd_hex)
