@@ -178,7 +178,7 @@ module test68
   reg  halt_n = 1'b1;            // Halt request
   reg [7:0] R_cpu_control = 0;   // SPI loader
 
-  assign cpu_din = cpu_a[17:15] < 2  ? rom_dout :
+  assign cpu_din = // cpu_a[17:15] < 2  ? rom_dout :
                    cpu_a[17:15] == 2 ? vga_dout :
 		                       ram_dout;
 
@@ -315,19 +315,20 @@ module test68
   wire we = spi_ram_word_wr;
   wire re = spi_ram_addr[31:24] == 8'h00 ? spi_ram_rd : 1'b0;
   assign rom_dout = ram_do;
+  assign ram_dout = ram_do;
   sdram_pnru_68k
   sdram_i
   (
     // cpu side
     .clk100_mhz(clk_sdram),
     .rst (~clk_sdram_locked),
-    .din (ram_di),
+    .din (R_cpu_control[1] ? ram_di   : cpu_dout),
     .dout(ram_do),
     .addr(R_cpu_control[1] ? {1'b0, spi_ram_addr[23:1]} : {1'b0, cpu_a[23:1]}),
     .udsn(R_cpu_control[1] ? ~(we|re) : cpu_uds_n),
     .ldsn(R_cpu_control[1] ? ~(we|re) : cpu_lds_n),
     .asn (R_cpu_control[1] ? ~(we|re) : cpu_as_n),
-    .rw  (R_cpu_control[1] ? ~we      : 1'b1),
+    .rw  (R_cpu_control[1] ? ~we      : cpu_rw),
 
     // sdram side
     .sd_data(sdram_d),
@@ -379,6 +380,7 @@ module test68
 */
   end
   else
+  begin
   gamerom #(.MEM_INIT_FILE("../roms/test.mem")) 
   rom16 (
     .clk(clk_cpu),
@@ -388,11 +390,13 @@ module test68
     .addr(cpu_a[15:1]),
     .dout(rom_dout)
   );
+  end
   endgenerate
 
   // ===============================================================
   // Ram
   // ===============================================================
+  /*
   ram ram32 (
     .clk(clk_cpu),
     .addr(cpu_a[14:1]),
@@ -402,6 +406,7 @@ module test68
     .ub(!cpu_uds_n),
     .lb(!cpu_lds_n)
   );
+  */
 
 
   // ===============================================================
