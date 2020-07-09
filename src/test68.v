@@ -3,7 +3,7 @@ module test68
 #(
   parameter c_slowdown    = 0, // CPU clock slowdown 2^n times (try 20-22)
   parameter c_lcd_hex     = 1, // SPI LCD HEX decoder
-  parameter c_sdram       = 1, // 0: BRAM 32K,  1: SDRAM, 
+  parameter c_sdram       = 1, // 0: BRAM 32K,  1: SDRAM
   parameter c_vga_out     = 0, // 0: Just HDMI, 1: VGA and HDMI
   parameter c_diag        = 0  // 0: No LED diagnostcs, 1: LED diagnostics
 )
@@ -67,7 +67,7 @@ module test68
     .out0_hz(125*1000000),
     .out1_hz( 25*1000000),
     .out2_hz(100*1000000),                // SDRAM core
-    .out3_hz(100*1000000), .out3_deg(180) // SDRAM chip 45-330:ok 0-30:not
+    .out3_hz(100*1000000), .out3_deg(120) // SDRAM chip 45-330:ok 0-30:not
   )
   ecp5pll_inst
   (
@@ -393,9 +393,10 @@ module test68
     .we_b(spi_ram_word_wr), // used by OSD
     .addr_b(spi_ram_addr[15:1]),
     .din_b(ram_di),
-    .addr(cpu_a[15:1]),
+    .addr(R_cpu_control[1] ? spi_ram_addr[15:1] : cpu_a[15:1]),
     .dout(rom_dout)
   );
+  assign ram_do = rom_dout; // for SPI to read back what is written
   // ===============================================================
   // Ram
   // ===============================================================
