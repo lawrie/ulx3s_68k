@@ -32,7 +32,7 @@ void hello(void)
   serial_init();
   for(;;)
   {
-    line[0] = '0' + (c++) % 10;
+    line[0] = '0' + (7 & c++);
     cout(line);
     delay(100000);
   } 
