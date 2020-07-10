@@ -105,8 +105,8 @@ module test68
   assign usb_fpga_pu_dn = 1;
 
   // Passthru to ESP32 micropython serial console
-  assign wifi_rxd = ftdi_txd;
-  assign ftdi_rxd = wifi_txd;
+  //assign wifi_rxd = ftdi_txd;
+  //assign ftdi_rxd = wifi_txd;
 
   // ===============================================================
   // Optional VGA output
@@ -177,8 +177,8 @@ module test68
   wire [15:0] cpu_din;           // Data to CPU
   wire [15:0] cpu_dout;          // Data from CPU
   wire [23:1] cpu_a;             // Address
-  reg  halt_n = 1'b1;            // Halt request
-  reg [7:0] R_cpu_control = 0;   // SPI loader
+  reg [7:0] R_cpu_control = 4;   // SPI loader, initially HALT to
+  wire halt_n = ~R_cpu_control[2]; // prevent running SDRAM junk code
   wire acia_cs = !vma_n & cpu_a[2] == 0;;
   wire audio_cs = !vma_n && cpu_a[2] == 1;
   wire [7:0] acia_dout;
@@ -188,8 +188,7 @@ module test68
 
   generate
   if(c_sdram) // SDRAM as ROM and RAM, BRAM as video
-  assign cpu_din = // cpu_a[17:15] == 2 ? vga_dout :
-		   acia_cs           ? {8'd0, acia_dout} :
+  assign cpu_din = acia_cs           ? {8'd0, acia_dout} :
    		                       ram_dout;
   else // BRAM all
   assign cpu_din = cpu_a[17:15] < 2  ? rom_dout :
@@ -245,7 +244,7 @@ module test68
     .DTACKn(dtack_n),
     .VPAn(vpa_n),
     .BERRn(berr_n),
-    .BRn(1'b1),       // No bus requests
+    .BRn(1'b1), // no bus request
     .BGACKn(1'b1),
     .IPL0n(ipl0_n),
     .IPL1n(ipl1_n),

@@ -32,7 +32,7 @@ class ld_msx:
 
   # read from file -> write to SPI RAM
   def load_msx_rom(self, filedata, addr=0, maxlen=0x10000, blocksize=1024):
-    self.ctrl(2)
+    self.ctrl(6) # 2:bus request + 4:halt
     # Request load
     self.cs.on()
     self.spi.write(bytearray([0,(addr >> 24) & 0xFF, (addr >> 16) & 0xFF, (addr >> 8) & 0xFF, addr & 0xFF]))
@@ -47,12 +47,12 @@ class ld_msx:
       else:
         break
     self.cs.off()
-    self.ctrl(1)
+    self.ctrl(1) # 1:reset
     #if header[2] == 0 and header[3] == 0:
     if (header[3] & 0xF0) == 0x40:
-      self.ctrl(16) # 32K ROM soft-switch
+      self.ctrl(16) # 16:32K ROM soft-switch, run
     else:
-      self.ctrl(0)
+      self.ctrl(0) # run
 
   # read from SPI RAM -> write to file
   def save_stream(self, filedata, addr=0, length=1024, blocksize=1024):
