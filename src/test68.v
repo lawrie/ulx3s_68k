@@ -81,9 +81,10 @@ module test68
   wire clk_hdmi  = clocks[0];
   wire clk_vga   = clocks[1];
   wire clk_cpu   = clocks[1];
-  wire clk_sdram = clocks[2];
-  wire sdram_clk = clocks[3];
-  assign sdram_cke = 1'b1;
+  wire clk_sdram = clocks[0];
+  //wire clk_sdram = clocks[2];
+  //wire sdram_clk = clocks[3];
+  //assign sdram_cke = 1'b1;
 
   // ===============================================================
   // Reset generation
@@ -105,8 +106,8 @@ module test68
   assign usb_fpga_pu_dn = 1;
 
   // Passthru to ESP32 micropython serial console
-  //assign wifi_rxd = ftdi_txd;
-  //assign ftdi_rxd = wifi_txd;
+  assign wifi_rxd = ftdi_txd;
+  assign ftdi_rxd = wifi_txd;
 
   // ===============================================================
   // Optional VGA output
@@ -279,8 +280,8 @@ module test68
     .data_out(acia_dout),
     .txclk(baudclk),
     .rxclk(baudclk),
-    .txdata(ftdi_rxd),
-    .rxdata(ftdi_txd),
+    //.txdata(ftdi_rxd),
+    //.rxdata(ftdi_txd),
     .cts_n(1'b0),
     .dcd_n(1'b0)
   );
@@ -363,11 +364,13 @@ module test68
   wire re = spi_ram_addr[31:24] == 8'h00 ? spi_ram_rd : 1'b0;
   assign rom_dout = ram_do;
   assign ram_dout = ram_do;
-  sdram_pnru_68k
+  //sdram_pnru_68k
+  sdram_pnru_68k_180deg
   sdram_i
   (
     // cpu side
-    .clk100_mhz(clk_sdram),
+    //.clk100_mhz(clk_sdram),
+    .clk125_mhz(clk_sdram),
     .rst (~clk_sdram_locked),
     .din (R_cpu_control[1] ? ram_di   : cpu_dout),
     .dout(ram_do),
@@ -378,8 +381,8 @@ module test68
     .rw  (R_cpu_control[1] ? ~we      : cpu_rw),
 
     // SDRAM side
-    //.sd_clk (sdram_clk),
-    //.sd_cke (sdram_cke),
+    .sd_clk (sdram_clk),
+    .sd_cke (sdram_cke),
     .sd_data(sdram_d),
     .sd_addr(sdram_a),
     .sd_dqm (sdram_dqm),
