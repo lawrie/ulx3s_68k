@@ -179,7 +179,8 @@ module test68
   wire [23:1] cpu_a;             // Address
   reg  halt_n = 1'b1;            // Halt request
   reg [7:0] R_cpu_control = 0;   // SPI loader
-  wire acia_cs = !vma_n;
+  wire acia_cs = !vma_n & cpu_a[2] == 0;;
+  wire audio_cs = !vma_n && cpu_a[2] == 1;
   wire [7:0] acia_dout;
 
   // Address 0x600000 to 6fffff used for peripherals
@@ -512,8 +513,21 @@ module test68
   // ===============================================================
   // Audio (not yet implemented)
   // ===============================================================
-  assign audio_l = 0;
+  wire [3:0] sound_ao;
+  assign audio_l = sound_ao;
   assign audio_r = audio_l;
+  wire sound_ready;
+
+  sn76489 #(.AUDIO_RES(4),.DIVIDER(8)) audio (
+    .clk(clk_cpu),
+    .clk_en(fx68_phi1),
+    .reset(!pwr_up_reset_n),
+    .ce_n(1'b0),
+    .we_n(!audio_cs),
+    .ready(sound_ready),
+    .d(cpu_dout[7:0]),
+    .audio_out(sound_ao)
+  );
 
   // ===============================================================
   // Diagnostic leds
