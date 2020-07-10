@@ -10,19 +10,19 @@ module test68
 (
   input         clk25_mhz,
   // Buttons
-  input [6:0]   btn,
+  input   [6:0] btn,
   // Switches
-  input [3:0]   sw,
+  input   [3:0] sw,
   // HDMI
-  output [3:0]  gpdi_dp,
+  output  [3:0] gpdi_dp,
   // Keyboard
   output        usb_fpga_pu_dp,
   output        usb_fpga_pu_dn,
   inout         ps2Clk,
   inout         ps2Data,
   // Audio
-  output [3:0]  audio_l,
-  output [3:0]  audio_r,
+  output  [3:0] audio_l,
+  output  [3:0] audio_r,
   // ESP32 passthru
   input         ftdi_txd,
   output        ftdi_rxd,
@@ -32,25 +32,27 @@ module test68
   input         wifi_gpio5,
   output        wifi_gpio0,
 
-  inout  sd_clk, sd_cmd,
+  inout         sd_clk, sd_cmd,
   inout   [3:0] sd_d,
-  output sdram_csn,       // chip select
-  output sdram_clk,       // clock to SDRAM
-  output sdram_cke,       // clock enable to SDRAM
-  output sdram_rasn,      // SDRAM RAS
-  output sdram_casn,      // SDRAM CAS
-  output sdram_wen,       // SDRAM write-enable
-  output [12:0] sdram_a,  // SDRAM address bus
-  output  [1:0] sdram_ba, // SDRAM bank-address
-  output  [1:0] sdram_dqm,// byte select
-  inout  [15:0] sdram_d,  // data bus to/from SDRAM
+
+  output        sdram_csn,  // chip select
+  output        sdram_clk,  // clock to SDRAM
+  output        sdram_cke,  // clock enable to SDRAM
+  output        sdram_rasn, // SDRAM RAS
+  output        sdram_casn, // SDRAM CAS
+  output        sdram_wen,  // SDRAM write-enable
+  output [12:0] sdram_a,    // SDRAM address bus
+  output  [1:0] sdram_ba,   // SDRAM bank-address
+  output  [1:0] sdram_dqm,  // byte select
+  inout  [15:0] sdram_d,    // data bus to/from SDRAM
+
   inout  [27:0] gp,gn,
   // SPI display
-  output oled_csn,
-  output oled_clk,
-  output oled_mosi,
-  output oled_dc,
-  output oled_resn,
+  output        oled_csn,
+  output        oled_clk,
+  output        oled_mosi,
+  output        oled_dc,
+  output        oled_resn,
   // Leds
   output [7:0]  leds
 );
@@ -103,8 +105,8 @@ module test68
   assign usb_fpga_pu_dn = 1;
 
   // Passthru to ESP32 micropython serial console
-  //assign wifi_rxd = ftdi_txd;
-  //assign ftdi_rxd = wifi_txd;
+  assign wifi_rxd = ftdi_txd;
+  assign ftdi_rxd = wifi_txd;
 
   // ===============================================================
   // Optional VGA output
@@ -185,7 +187,7 @@ module test68
 
   generate
   if(c_sdram) // SDRAM as ROM and RAM, BRAM as video
-  assign cpu_din = cpu_a[17:15] == 2 ? vga_dout :
+  assign cpu_din = // cpu_a[17:15] == 2 ? vga_dout :
 		   acia_cs           ? {8'd0, acia_dout} :
    		                       ram_dout;
   else // BRAM all
@@ -277,10 +279,10 @@ module test68
     .data_out(acia_dout),
     .txclk(baudclk),
     .rxclk(baudclk),
-    .cts_n(1'b0),
-    .dcd_n(1'b0),
     .txdata(ftdi_rxd),
-    .rxdata(ftdi_txd)
+    .rxdata(ftdi_txd),
+    .cts_n(1'b0),
+    .dcd_n(1'b0)
   );
 
   // ====================================================
@@ -375,7 +377,9 @@ module test68
     .asn (R_cpu_control[1] ? ~(we|re) : cpu_as_n),
     .rw  (R_cpu_control[1] ? ~we      : cpu_rw),
 
-    // sdram side
+    // SDRAM side
+    //.sd_clk (sdram_clk),
+    //.sd_cke (sdram_cke),
     .sd_data(sdram_d),
     .sd_addr(sdram_a),
     .sd_dqm (sdram_dqm),
@@ -419,11 +423,12 @@ module test68
   wire [10:0] ps2_key;
 
   // Get PS/2 keyboard events
-  ps2 ps2_kbd (
-     .clk(clk_cpu),
-     .ps2_clk(ps2Clk),
-     .ps2_data(ps2Data),
-     .ps2_key(ps2_key)
+  ps2 ps2_kbd
+  (
+    .clk(clk_cpu),
+    .ps2_clk(ps2Clk),
+    .ps2_data(ps2Data),
+    .ps2_key(ps2_key)
   );
 
   // ===============================================================
