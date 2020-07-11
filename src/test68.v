@@ -68,8 +68,8 @@ module test68
       .in_hz( 25*1000000),
     .out0_hz(125*1000000),
     .out1_hz( 25*1000000),
-    .out2_hz(100*1000000),                // SDRAM core
-    .out3_hz(125*1000000), .out3_deg(120) // SDRAM chip 45-330:ok 0-30:not
+    .out2_hz(125*1000000),                // SDRAM core
+    .out3_hz(125*1000000), .out3_deg(180) // SDRAM chip 45-330:ok 0-30:not
   )
   ecp5pll_inst
   (
@@ -81,9 +81,9 @@ module test68
   wire clk_hdmi  = clocks[0];
   wire clk_vga   = clocks[1];
   wire clk_cpu   = clocks[1];
-  wire clk_sdram = clocks[0];
-  //wire clk_sdram = clocks[2];
-  wire sdram_clk = clocks[3];
+  //wire clk_sdram = clocks[0];
+  wire clk_sdram = clocks[2];
+  //wire sdram_clk = clocks[3];
   //assign sdram_cke = 1'b1;
 
   // ===============================================================
@@ -370,7 +370,7 @@ module test68
   (
     // cpu side
     //.clk100_mhz(clk_sdram),
-    .clk125_mhz(clk_sdram),
+    .clk_in(clk_sdram),
     .rst (~clk_sdram_locked),
     .din (R_cpu_control[1] ? ram_di   : cpu_dout),
     .dout(ram_do),
@@ -381,7 +381,7 @@ module test68
     .rw  (R_cpu_control[1] ? ~we      : cpu_rw),
 
     // SDRAM side
-    //.sd_clk (sdram_clk),
+    .sd_clk (sdram_clk),
     .sd_cke (sdram_cke),
     .sd_data(sdram_d),
     .sd_addr(sdram_a),
