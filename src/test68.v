@@ -106,8 +106,8 @@ module test68
   assign usb_fpga_pu_dn = 1;
 
   // Passthru to ESP32 micropython serial console
-  assign wifi_rxd = ftdi_txd;
-  assign ftdi_rxd = wifi_txd;
+  //assign wifi_rxd = ftdi_txd;
+  //assign ftdi_rxd = wifi_txd;
 
   // ===============================================================
   // Optional VGA output
@@ -180,9 +180,11 @@ module test68
   wire [23:1] cpu_a;             // Address
   reg [7:0] R_cpu_control = 4;   // SPI loader, initially HALT to
   wire halt_n = ~R_cpu_control[2]; // prevent running SDRAM junk code
-  wire acia_cs = !vma_n & cpu_a[2] == 0;;
-  wire audio_cs = !vma_n && cpu_a[2] == 1;
+  wire acia_cs  = !vma_n && cpu_a[3:2] == 0;
+  wire audio_cs = !vma_n && cpu_a[3:1] == 2;
+  wire keybd_cs = !vma_n && cpu_a[3:1] == 3;
   wire [7:0] acia_dout;
+  wire [63:0] kbd_matrix;
 
   // Address 0x600000 to 6fffff used for peripherals
   assign vpa_n = !(cpu_a[23:18]==6'b011000) | cpu_as_n;
@@ -190,11 +192,13 @@ module test68
   generate
   if(c_sdram) // SDRAM as ROM and RAM, BRAM as video
   assign cpu_din = acia_cs           ? {8'd0, acia_dout} :
-   		                       ram_dout;
+                   keybd_cs          ? kbd_matrix[{cpu_a[6:4], 3'b0} + 7 -: 8] :
+  		                       ram_dout;
   else // BRAM all
   assign cpu_din = cpu_a[17:15] < 2  ? rom_dout :
                    cpu_a[17:15] == 2 ? vga_dout :
 		   acia_cs           ? {8'd0, acia_dout} :
+                   keybd_cs          ? kbd_matrix[{cpu_a[6:4], 3'b0} + 7 -: 8] :
    		                       ram_dout;
   endgenerate
 
@@ -280,8 +284,8 @@ module test68
     .data_out(acia_dout),
     .txclk(baudclk),
     .rxclk(baudclk),
-    //.txdata(ftdi_rxd),
-    //.rxdata(ftdi_txd),
+    .txdata(ftdi_rxd),
+    .rxdata(ftdi_txd),
     .cts_n(1'b0),
     .dcd_n(1'b0)
   );
@@ -432,6 +436,15 @@ module test68
     .ps2_clk(ps2Clk),
     .ps2_data(ps2Data),
     .ps2_key(ps2_key)
+  );
+
+  keyboard keyboard (
+    .reset(!pwr_up_reset_n),
+    .clk(clk_cpu),
+    .ps2_key(ps2_key),
+    .js0({btn[1],btn[3],btn[4],btn[5],btn[6]}),
+    .js1({btn[1],btn[3],btn[4],btn[5],btn[6]}),
+    .matrix(kbd_matrix)
   );
 
   // ===============================================================

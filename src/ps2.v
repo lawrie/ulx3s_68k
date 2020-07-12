@@ -23,7 +23,7 @@ module ps2 (
     reg [7:0] key = 8'h00;
     reg [1:0] state = `RCVSTART;
     
-    assign ps2_key = {kb_interrupt, kb_released, kb_extended, scancode};
+    assign ps2_key = {kb_interrupt, !kb_released, kb_extended, scancode};
 
     // Synchronise ps2 clock and data with system clock
     reg [1:0] ps2clk_synchr;
