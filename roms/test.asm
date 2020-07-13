@@ -1,3 +1,5 @@
+KEYROW1 EQU $600017
+
 	ORG	$0000
 
 	DC.L	$20000		; Set stack to top of RAM
@@ -17,9 +19,13 @@ CLEAR1	MOVE.W  #$6666, (A0)+	; Write to VRAM
 	MOVE.W	#123, D3	; Draw it 124 times
 DRAW
 	LEA	$13800,A0	; 16 pixels above bottom half
+        MOVE.B  KEYROW1.L,D4    ; Get Keyrow 1
+        BTST.L  #2,D4
+	BEQ.S	NOJMP
+	SUBA.L	#2048,A0
+NOJMP	
 	MOVE.W	#123,D4		; Get positive index 
 	SUB.W	D3,D4		
-	;ASL.W	#1,D4		; Double it
 	ADDA.W	D4,A0		; Add it to screen address
 	MOVE.L	A0,-(SP)	; Save address
 	LEA	BACK,A1		; Read existing screen contents
@@ -27,20 +33,20 @@ DRAW
 	MOVE.L	(SP),A0		; Restore screen address
 	LEA	SPRITE1,A1	; Get address of sprite
 	BSR.S	SPRITE		; Draw the sprite
-	;STOP	#$2700
 	MOVE.W	#$FFFF,D2	; Delay
 	DBRA	D2,$		
-	;CMP.W	#0,D3		; Leave final sprite on screen
-	;BEQ.S	DRAW
 	MOVE.L	(SP)+,A0	; Restore screen address
-	;LEA	BLANK,A1	; Address of blank sprite
-	;BSR.S	SPRITE		; Blank it
 	LEA	BACK,A1		; Restore background
 	BSR	SPRITE16
 	DBRA	D3,DRAW		; Continue to next position
 	MOVE.W	#123, D3	; Draw it 124 times
 DRAWBACK
 	LEA	$1387C,A0	; 16 pixels above bottom half
+        MOVE.B  KEYROW1.L,D4    ; Get Keyrow 1
+        BTST.L  #2,D4
+	BEQ.S	NOJMP1
+	SUBA.L	#2048,A0
+NOJMP1
 	MOVE.W	#123,D4		; Get positive index 
 	SUB.W	D3,D4		
 	SUB.W	D4,A0		; Subtract it from screen address
