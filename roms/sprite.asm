@@ -1,4 +1,5 @@
-KEYROW1 EQU $600017
+KEYROW1	EQU $600017
+SOUND	EQU $600005
 
 	ORG	$0000
 
@@ -25,20 +26,22 @@ DRAW
 	SUBA.L	#2048,A0
 NOJMP	
 	MOVE.W	#123,D4		; Get positive index 
-	SUB.W	D3,D4		
+	SUB.W	D3,D4	
 	ADDA.W	D4,A0		; Add it to screen address
+	BSR	PLAY
 	MOVE.L	A0,-(SP)	; Save address
 	LEA	BACK,A1		; Read existing screen contents
 	BSR	READVRAM
 	MOVE.L	(SP),A0		; Restore screen address
 	LEA	SPRITE1,A1	; Get address of sprite
-	BSR.S	SPRITE		; Draw the sprite
+	BSR	SPRITE		; Draw the sprite
 	MOVE.W	#$FFFF,D2	; Delay
 	DBRA	D2,$		
 	MOVE.L	(SP)+,A0	; Restore screen address
 	LEA	BACK,A1		; Restore background
 	BSR	SPRITE16
 	DBRA	D3,DRAW		; Continue to next position
+	BSR	SOUNDOFF
 	MOVE.W	#123, D3	; Draw it 124 times
 DRAWBACK
 	LEA	$1387C,A0	; 16 pixels above bottom half
@@ -50,6 +53,7 @@ NOJMP1
 	MOVE.W	#123,D4		; Get positive index 
 	SUB.W	D3,D4		
 	SUB.W	D4,A0		; Subtract it from screen address
+	BSR	PLAY
 	MOVE.L	A0,-(SP)	; Save address
 	LEA	BACK,A1		; Read existing screen contents
 	BSR	READVRAM
@@ -60,11 +64,12 @@ NOJMP1
 	DBRA	D2,$		
 	MOVE.L	(SP)+,A0	; Restore screen address
 	LEA	BACK,A1		; Restore background
-	BSR.S	SPRITE16
+	BSR	SPRITE16
 	DBRA	D3,DRAWBACK	; Continue to next position
 	LEA	$13800,A0
 	LEA	SPRITE1,A1
 	BSR.S	SPRITE
+	BSR	SOUNDOFF
 STOP
 	STOP    #$2700
 
@@ -132,6 +137,69 @@ RPIX2A	MOVE.B  (A0)+,(A1)+	; For 8x16 sprite
 	DBRA	D1,RPIX2A
 	ADDA.L	#124,A0		; Move to next line
 	DBRA	D0,RLINE
+	RTS
+
+PLAY	AND.W	#$1F,D4
+	CMP	#13,D4
+	BEQ.S	NOSOUND
+	CMP	#17,D4
+	BEQ.S	NOSOUND
+	CMP	#25,D4
+	BEQ.S	NOSOUND
+	BTST	#0,D4
+	BEQ.S	NOSOUND
+	LSR.W	#1,D4
+	AND.B	#$F,D4
+	CMP	#2,D4
+	BCS.S	NOTE_E
+	CMP	#3,D4
+	BEQ.S	NOTE_E
+	CMP	#5,D4
+	BEQ.S	NOTE_C
+	CMP	#8,D4
+	BCS.S	NOTE_E
+	CMP	#10,D4
+	BCS.S	NOTE_G
+	CMP	#12,D4
+	BEQ.S	LOW_G
+	CMP	#13,D4
+	BEQ.S	LOW_G
+NOSOUND
+	BSR.S	SOUNDOFF
+	RTS
+NOTE_G
+	MOVE.W	#62,D4
+	BSR.S	TONE
+	RTS
+NOTE_C
+	MOVE.W	#88,D4
+	BSR.S	TONE
+	RTS
+NOTE_E
+	MOVE.W	#72,D4
+	BSR.S	TONE
+	RTS
+LOW_G
+	MOVE.W	#124,D4
+	BSR.S	TONE
+	RTS
+
+SOUNDOFF
+        MOVE.B  #$9F,SOUND.L    ; Channel 1 off
+	RTS
+	
+SOUNDON
+        MOVE.B  #$90,SOUND.L    ; Channel 1 on full
+	RTS
+	
+TONE    BSR	SOUNDON
+	MOVE.B	D4,D5
+	AND.B	#$F,D5
+	OR.B	#$80,D5
+	LSR.W	#4,D4
+	AND.B	#$3F,D4
+	MOVE.B  D5,SOUND.L    ; Set frequency for channel 0
+        MOVE.B  D4,SOUND.L
 	RTS
 
 SPRITE1	

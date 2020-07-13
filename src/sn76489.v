@@ -57,13 +57,13 @@ module sn76489
        begin
           // attenutation registers are the important bits
           regs[0] <= 0;
-          regs[1] <= 255;
+          regs[1] <= 15;
           regs[2] <= 0;
-          regs[3] <= 255;
+          regs[3] <= 15;
           regs[4] <= 0;
-          regs[5] <= 255;
+          regs[5] <= 15;
           regs[6] <= 0;
-          regs[7] <= 255;
+          regs[7] <= 15;
        end // if (reset)
      else
        begin
