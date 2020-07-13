@@ -25,8 +25,8 @@ module vram (
   end
 
   always @(posedge clk_b) begin
-    if (addr_b[0]) dout_b <= ram_ub[addr_b[14:1]];
-    else dout_b <= ram_lb[addr_b[14:1]];
+    if (addr_b[0]) dout_b <= ram_lb[addr_b[14:1]];
+    else dout_b <= ram_ub[addr_b[14:1]];
   end
 
 endmodule

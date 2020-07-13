@@ -160,7 +160,7 @@ module test68
   wire cpu_uds_n;                // Upper byte
   wire cpu_E;                    // Peripheral enable
   wire vma_n;                    // Valid memory address
-  reg  vpa_n;                    // Valid peripheral address
+  wire vpa_n;                    // Valid peripheral address
   wire cpu_fc0;                  // Processor state
   wire cpu_fc1;
   wire cpu_fc2;
@@ -452,14 +452,13 @@ module test68
   // ===============================================================
   wire [14:0] vid_addr; // Used by vdp
   wire [7:0]  vid_dout; // Used by vdp
-  wire [14:0] vga_addr = cpu_a[14:1];
   wire        vga_wr = !cpu_rw && cpu_a[17:15] == 2;
   wire        vga_rd = cpu_rw && cpu_a[17:15] == 2;
   wire        vga_de;
 
   vram video_ram (
     .clk_a(clk_cpu),
-    .addr_a(vga_addr),
+    .addr_a(cpu_a[14:1]),
     .we_a(vga_wr),
     .re_a(vga_rd),
     .din_a(cpu_dout),
