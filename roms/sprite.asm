@@ -23,21 +23,42 @@ DRAW
 	ADDA.W	D4,A0		; Add it to screen address
 	MOVE.L	A0,-(SP)	; Save address
 	LEA	BACK,A1		; Read existing screen contents
-	BSR.S	READVRAM
+	BSR	READVRAM
 	MOVE.L	(SP),A0		; Restore screen address
 	LEA	SPRITE1,A1	; Get address of sprite
 	BSR.S	SPRITE		; Draw the sprite
 	;STOP	#$2700
 	MOVE.W	#$FFFF,D2	; Delay
 	DBRA	D2,$		
-	CMP.W	#0,D3		; Leave final sprite on screen
-	BEQ.S	DRAW
+	;CMP.W	#0,D3		; Leave final sprite on screen
+	;BEQ.S	DRAW
 	MOVE.L	(SP)+,A0	; Restore screen address
 	;LEA	BLANK,A1	; Address of blank sprite
 	;BSR.S	SPRITE		; Blank it
 	LEA	BACK,A1		; Restore background
-	BSR.S	SPRITE16
+	BSR	SPRITE16
 	DBRA	D3,DRAW		; Continue to next position
+	MOVE.W	#123, D3	; Draw it 124 times
+DRAWBACK
+	LEA	$1387C,A0	; 16 pixels above bottom half
+	MOVE.W	#123,D4		; Get positive index 
+	SUB.W	D3,D4		
+	SUB.W	D4,A0		; Subtract it from screen address
+	MOVE.L	A0,-(SP)	; Save address
+	LEA	BACK,A1		; Read existing screen contents
+	BSR	READVRAM
+	MOVE.L	(SP),A0		; Restore screen address
+	LEA	SPRITE1,A1	; Get address of sprite
+	BSR.S	SPRFLIP		; Draw the sprite
+	MOVE.W	#$FFFF,D2	; Delay
+	DBRA	D2,$		
+	MOVE.L	(SP)+,A0	; Restore screen address
+	LEA	BACK,A1		; Restore background
+	BSR.S	SPRITE16
+	DBRA	D3,DRAWBACK	; Continue to next position
+	LEA	$13800,A0
+	LEA	SPRITE1,A1
+	BSR.S	SPRITE
 STOP
 	STOP    #$2700
 
@@ -56,6 +77,28 @@ PIX2A   MOVE.B  (A1)+,(A0)+	; For 8x16 sprite
 	DBRA	D1,PIX2A
 	ADDA.L	#124,A0		; Move to next line
 	DBRA	D0,LINE
+	RTS
+
+; A0 = screen address, A1 = sprite
+; 8x8 sprite expanded to 8x16 on screen
+; Byte-aligned only
+SPRFLIP
+	MOVE.W	#7,D0		; 8 rows in a sprite
+LINEF	MOVE.W	#3,D1		; 4 bytes, 8 pixels on a row
+	ADDA.L	#4,A0
+PIXELF	MOVE.B	(A1)+,D4	; Write 2 pixels to screen
+	ROL.B	#4,D4
+	MOVE.B	D4,-(A0)
+	DBRA	D1,PIXELF	; Loop until 8 pixels written
+	SUBQ.L	#4, A1		; Go back to start of sprite row
+	ADDA.L	#132,A0		; Move to next screen row
+        MOVE.W	#3,D1		; Write second copy of row
+PIXFA   MOVE.B  (A1)+,D4	; For 8x16 sprite
+	ROL.B	#4,D4
+	MOVE.B	D4,-(A0)
+	DBRA	D1,PIXFA
+	ADDA.L	#128,A0		; Move to next line
+	DBRA	D0,LINEF
 	RTS
 
 ; A0 = screen address, A1 = sprite
